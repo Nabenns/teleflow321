@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lapakgram-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lapakgram
+      POSTGRES_PASSWORD: lapakgram_dev
+      POSTGRES_DB: lapakgram
+    ports:
+      # Host port 5434 to avoid conflict with native Postgres (5432) and the
+      # sibling Lapakflow project. Container-side stays 5432.
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lapakgram -d lapakgram"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: lapakgram-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      # Host port 6380 to avoid conflict with sibling Lapakflow Redis on 6379.
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: lapakgram-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: lapakgram
+      MINIO_ROOT_PASSWORD: lapakgram_dev_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
