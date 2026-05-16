@@ -1522,7 +1522,17 @@ Then replace the file's contents with:
 -- Enable RLS and define tenant_isolation policy on every tenant-scoped table.
 -- Policy: SELECT/UPDATE/DELETE/INSERT only succeed when the row's merchant_id
 -- matches the session GUC `app.current_merchant_id`. If the GUC is empty
--- string, NO rows match (deny by default).
+-- string (or unset, which `current_setting(..., true)` returns as NULL),
+-- NO rows match (deny by default).
+--
+-- Implementation note: we use `NULLIF(..., '')::uuid` rather than guarding
+-- the cast with an explicit `<> ''` check joined by AND. PostgreSQL does not
+-- guarantee short-circuit evaluation of AND in policy expressions; the
+-- planner can constant-fold the (stable) `current_setting()` calls and
+-- evaluate the `::uuid` cast eagerly, which raises `invalid input syntax`
+-- when the GUC is empty. `NULLIF` makes the unset/empty case yield NULL
+-- before the cast runs, and `merchant_id = NULL` is NULL (treated as false
+-- by USING/WITH CHECK), giving the intended deny-by-default behavior.
 
 DO $$
 DECLARE
@@ -1551,12 +1561,10 @@ BEGIN
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I
          USING (
-           merchant_id::text = current_setting(''app.current_merchant_id'', true)
-           AND current_setting(''app.current_merchant_id'', true) <> ''''
+           merchant_id = NULLIF(current_setting(''app.current_merchant_id'', true), '''')::uuid
          )
          WITH CHECK (
-           merchant_id::text = current_setting(''app.current_merchant_id'', true)
-           AND current_setting(''app.current_merchant_id'', true) <> ''''
+           merchant_id = NULLIF(current_setting(''app.current_merchant_id'', true), '''')::uuid
          )',
       t
     );
@@ -1809,10 +1817,13 @@ export async function startTestDb(): Promise<TestDb> {
     .withPassword("test")
     .start();
 
-  const url = container.getConnectionUri();
-  const sql = postgres(url, { max: 5, onnotice: () => {} });
-
-  // Apply all SQL migrations in order
+  // Apply migrations as the bootstrap `test` user. testcontainers provisions
+  // `test` as a SUPERUSER, and superusers ALWAYS bypass RLS (even with FORCE
+  // ROW LEVEL SECURITY). After migrations apply, we create a non-superuser
+  // `app_user` role; the application pool connects as that role so the RLS
+  // policies actually run, mirroring how a real production role behaves.
+  const adminUrl = container.getConnectionUri();
+  const adminSql = postgres(adminUrl, { max: 1, onnotice: () => {} });
   const dir = fileURLToPath(new URL("../migrations", import.meta.url));
   const files = readdirSync(dir)
     .filter((f) => f.endsWith(".sql"))
@@ -1821,8 +1832,26 @@ export async function startTestDb(): Promise<TestDb> {
   for (const file of files) {
     const path = join(dir, file);
     const stmt = readFileSync(path, "utf8");
-    await sql.unsafe(stmt);
+    await adminSql.unsafe(stmt);
   }
+
+  // Create a plain LOGIN role with no special attributes. It must own no
+  // tenant tables and must not be a superuser, otherwise RLS would not
+  // apply to it.
+  await adminSql.unsafe(`
+    DO $$ BEGIN
+      CREATE ROLE app_user LOGIN PASSWORD 'app_user';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+    GRANT USAGE ON SCHEMA public TO app_user;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+  `);
+  await adminSql.end({ timeout: 5 });
+
+  // Build the app-user connection URL from the container metadata.
+  const url = `postgres://app_user:app_user@${container.getHost()}:${container.getPort()}/${container.getDatabase()}`;
+  const sql = postgres(url, { max: 5, onnotice: () => {} });
 
   return {
     url,
