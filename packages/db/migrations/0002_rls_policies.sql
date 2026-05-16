@@ -3,6 +3,15 @@
 -- matches the session GUC `app.current_merchant_id`. If the GUC is empty
 -- string (or unset, which `current_setting(..., true)` returns as NULL),
 -- NO rows match (deny by default).
+--
+-- Implementation note: we use `NULLIF(..., '')::uuid` rather than guarding
+-- the cast with an explicit `<> ''` check joined by AND. PostgreSQL does not
+-- guarantee short-circuit evaluation of AND in policy expressions; the
+-- planner can constant-fold the (stable) `current_setting()` calls and
+-- evaluate the `::uuid` cast eagerly, which raises `invalid input syntax`
+-- when the GUC is empty. `NULLIF` makes the unset/empty case yield NULL
+-- before the cast runs, and `merchant_id = NULL` is NULL (treated as false
+-- by USING/WITH CHECK), giving the intended deny-by-default behavior.
 
 DO $$
 DECLARE
@@ -31,12 +40,10 @@ BEGIN
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I
          USING (
-           current_setting(''app.current_merchant_id'', true) <> ''''
-           AND merchant_id = current_setting(''app.current_merchant_id'', true)::uuid
+           merchant_id = NULLIF(current_setting(''app.current_merchant_id'', true), '''')::uuid
          )
          WITH CHECK (
-           current_setting(''app.current_merchant_id'', true) <> ''''
-           AND merchant_id = current_setting(''app.current_merchant_id'', true)::uuid
+           merchant_id = NULLIF(current_setting(''app.current_merchant_id'', true), '''')::uuid
          )',
       t
     );
