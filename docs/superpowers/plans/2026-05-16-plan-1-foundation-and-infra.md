@@ -653,13 +653,14 @@ git commit -m "feat(web): bootstrap Next.js 15 app with Tailwind"
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "noEmit": true
   },
   "include": ["src/**/*", "drizzle.config.ts", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }
 ```
+
+(Note: no `rootDir`. Drizzle config sits at the package root, not under `src/`, so a `rootDir: "./src"` setting plus `include: ["drizzle.config.ts"]` would conflict — `tsc` would emit TS6059. Since `noEmit: true` makes `rootDir` purely a validation constraint, dropping it is the simplest fix.)
 
 - [ ] **Step 3: Create `packages/db/drizzle.config.ts`**
 
@@ -674,7 +675,12 @@ if (!databaseUrl) {
 
 export default {
   dialect: "postgresql",
-  schema: "./src/schema/index.ts",
+  // Pass schema files explicitly (array form). The schema barrel
+  // (`src/schema/index.ts`) uses NodeNext-style `.js` re-exports, which
+  // drizzle-kit's loader does not remap to `.ts` source. Pointing directly
+  // at the schema files bypasses that loader limitation while keeping
+  // application code free to consume the barrel via tsc/Next.
+  schema: ["./src/schema/platform.ts", "./src/schema/tenant.ts"],
   out: "./migrations",
   dbCredentials: { url: databaseUrl },
   strict: true,
