@@ -314,7 +314,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: lapakgram-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
