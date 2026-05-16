@@ -30,12 +30,35 @@ describe("crypto", () => {
     expect(() => decryptSecret(ciphertext, keyB)).toThrow();
   });
 
-  it("fails to decrypt if ciphertext is tampered", () => {
+  it("fails to decrypt if the auth tag is tampered", () => {
     const key = generateEncryptionKey();
     const ciphertext = encryptSecret("hello", key);
     // Flip last byte (auth tag region)
     ciphertext[ciphertext.length - 1] ^= 0x01;
     expect(() => decryptSecret(ciphertext, key)).toThrow();
+  });
+
+  it("fails to decrypt if the ciphertext body is tampered", () => {
+    const key = generateEncryptionKey();
+    // 12-byte nonce + ciphertext body + 16-byte tag.
+    // Flip a byte inside the ciphertext body.
+    const ciphertext = encryptSecret("hello world", key);
+    ciphertext[12 + 1] ^= 0x01;
+    expect(() => decryptSecret(ciphertext, key)).toThrow();
+  });
+
+  it("fails to decrypt if the nonce is tampered", () => {
+    const key = generateEncryptionKey();
+    const ciphertext = encryptSecret("hello", key);
+    // Flip a byte inside the nonce region (first 12 bytes).
+    ciphertext[3] ^= 0x01;
+    expect(() => decryptSecret(ciphertext, key)).toThrow();
+  });
+
+  it("rejects ciphertext shorter than nonce + tag (28 bytes)", () => {
+    const key = generateEncryptionKey();
+    const tooShort = Buffer.alloc(10);
+    expect(() => decryptSecret(tooShort, key)).toThrow(/too short/);
   });
 
   it("parses a 32-byte base64 key", () => {

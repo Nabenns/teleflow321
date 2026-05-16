@@ -32,12 +32,19 @@ export function encryptSecret(plaintext: string, key: Buffer): Buffer {
   return Buffer.concat([nonce, ciphertext, tag]);
 }
 
+/**
+ * Decrypt a secret produced by encryptSecret. The blob layout must be:
+ *   [nonce (12 bytes)] [ciphertext (N bytes)] [auth tag (16 bytes)]
+ * Throws on wrong key, tampered nonce/ciphertext/tag, or malformed length.
+ */
 export function decryptSecret(blob: Buffer, key: Buffer): string {
   if (key.length !== KEY_BYTES) {
     throw new Error("encryption key must be 32 bytes");
   }
   if (blob.length < NONCE_BYTES + TAG_BYTES) {
-    throw new Error("ciphertext too short");
+    throw new Error(
+      `ciphertext too short: need at least ${NONCE_BYTES + TAG_BYTES} bytes, got ${blob.length}`,
+    );
   }
   const nonce = blob.subarray(0, NONCE_BYTES);
   const tag = blob.subarray(blob.length - TAG_BYTES);
