@@ -58,7 +58,9 @@ export const plans = pgTable(
     monthlyPriceIdr: integer("monthly_price_idr").notNull().default(0),
     yearlyPriceIdr: integer("yearly_price_idr").notNull().default(0),
     transactionFeeBps: integer("transaction_fee_bps").notNull().default(0),
-    limits: jsonb("limits").notNull().default(sql`'{}'::jsonb`),
+    limits: jsonb("limits")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

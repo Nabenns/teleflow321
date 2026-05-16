@@ -24,6 +24,7 @@ Sister product dari Lapakflow (Shopee version) — brand family `Lapak[platform]
 ## 2. Goals & Non-Goals
 
 ### Goals (MVP)
+
 - Onboarding merchant <10 menit dari sign up sampai bot online dengan minimal 1
   produk siap jual
 - Auto-delivery akun premium / file / license key dalam <5 detik setelah order
@@ -38,6 +39,7 @@ Sister product dari Lapakflow (Shopee version) — brand family `Lapak[platform]
 - Self-hosted di VPS pake Docker + Coolify
 
 ### Non-Goals (MVP)
+
 - Multi-level reseller / harga tier (phase 2)
 - Review & rating produk (phase 2)
 - Affiliate / referral program (phase 3)
@@ -49,6 +51,7 @@ Sister product dari Lapakflow (Shopee version) — brand family `Lapak[platform]
 - Multi-currency (IDR-only)
 
 ### Success Criteria
+
 - 5 merchant beta aktif jualan beneran dalam 4 minggu post-launch
 - Auto-delivery success rate ≥99% dalam 30 hari pertama production
 - Zero cross-tenant data leak (verified via RLS test suite)
@@ -105,6 +108,7 @@ billing, dispute, payout approval.
 ### 4.2 Services
 
 **`web` (Next.js 15+, TypeScript)**
+
 - Dashboard merchant (`app.lapakgram.id` atau `lapakgram.id/dashboard`)
 - Mini App customer (`lapakgram.id/m/[merchantSlug]`)
 - REST API (`/api/v1/*` public, `/api/internal/*` service-to-service)
@@ -112,6 +116,7 @@ billing, dispute, payout approval.
 - Auth: NextAuth v5 (email + Telegram OAuth, no Google)
 
 **`bot-service` (Go)**
+
 - Single binary multi-bot webhook handler
 - Endpoint: `POST /webhook/{webhook_secret}`
 - Background worker mode: `--worker` flag, consume asynq queue
@@ -120,20 +125,20 @@ billing, dispute, payout approval.
 
 ### 4.3 Infrastructure
 
-| Component | Tech | Notes |
-|---|---|---|
-| Database | Postgres 16 | Single instance, shared schema, RLS by `merchant_id` |
-| Queue / cache | Redis 7 | asynq queue, rate limiter, session FSM, idempotency |
-| Object storage | MinIO (self-hosted, S3-compatible) | File produk, foto, attachment komplain |
-| Container orchestration | Coolify on Hetzner VPS | CPX21-CPX31 cukup buat MVP |
-| Deploy unit | Docker images via GHCR | CI = GitHub Actions, auto-pull on tag |
+| Component               | Tech                               | Notes                                                |
+| ----------------------- | ---------------------------------- | ---------------------------------------------------- |
+| Database                | Postgres 16                        | Single instance, shared schema, RLS by `merchant_id` |
+| Queue / cache           | Redis 7                            | asynq queue, rate limiter, session FSM, idempotency  |
+| Object storage          | MinIO (self-hosted, S3-compatible) | File produk, foto, attachment komplain               |
+| Container orchestration | Coolify on Hetzner VPS             | CPX21-CPX31 cukup buat MVP                           |
+| Deploy unit             | Docker images via GHCR             | CI = GitHub Actions, auto-pull on tag                |
 
 ### 4.4 Service Communication
 
 - **Sync read-heavy**: bot-service query Postgres langsung (catalog, customer,
   order). Lebih cepet, fewer hops.
 - **Sync write commands**: bot-service → web internal API (`POST
-  /api/internal/*`) untuk operasi yang punya business logic kompleks (create
+/api/internal/*`) untuk operasi yang punya business logic kompleks (create
   order, deduct balance). Auth: shared service token (`X-Service-Token`).
 - **Async events**: kedua service share Redis (asynq queue). Web enqueue job,
   bot-service consume.
@@ -458,6 +463,7 @@ Header: X-Telegram-Bot-Api-Secret-Token: {webhook_telegram_secret}
 ```
 
 Flow:
+
 1. Lookup merchant by `webhook_secret` (cache: Redis 5 menit, fallback DB)
 2. Verify `X-Telegram-Bot-Api-Secret-Token` matches `webhook_telegram_secret`
 3. Parse Telegram Update JSON
@@ -508,14 +514,14 @@ bot-service/
 
 ### 6.4 Background Jobs (asynq)
 
-| Job | Trigger | Description |
-|---|---|---|
-| `delivery` | `orders.status` → `paid` | Pull stok / file, deliver via Telegram |
-| `replace` | Customer komplain (warranty_mode=auto) | Pull stok ganti, deliver |
-| `notify_low_stock` | Cron 5 menit | Alert merchant via bot kalo stok < threshold |
-| `notify_warranty_expiring` | Cron 1x sehari | Reminder customer "garansi 1 hari lagi". Job dibangun di MVP, tapi default OFF di tiap merchant. Merchant aktifkan di settings (boolean toggle). |
-| `payment_webhook_retry` | PG webhook fail di web | Retry update order |
-| `move_pending_to_available` | Cron harian | Pindah balance setelah hold period |
+| Job                         | Trigger                                | Description                                                                                                                                      |
+| --------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `delivery`                  | `orders.status` → `paid`               | Pull stok / file, deliver via Telegram                                                                                                           |
+| `replace`                   | Customer komplain (warranty_mode=auto) | Pull stok ganti, deliver                                                                                                                         |
+| `notify_low_stock`          | Cron 5 menit                           | Alert merchant via bot kalo stok < threshold                                                                                                     |
+| `notify_warranty_expiring`  | Cron 1x sehari                         | Reminder customer "garansi 1 hari lagi". Job dibangun di MVP, tapi default OFF di tiap merchant. Merchant aktifkan di settings (boolean toggle). |
+| `payment_webhook_retry`     | PG webhook fail di web                 | Retry update order                                                                                                                               |
+| `move_pending_to_available` | Cron harian                            | Pindah balance setelah hold period                                                                                                               |
 
 ### 6.5 Rate Limiting
 
@@ -579,12 +585,12 @@ app/
 
 ### 7.3 RBAC
 
-| Role | Permissions |
-|---|---|
-| owner | Semua, termasuk billing, transfer ownership, delete merchant |
-| admin | Semua kecuali billing & destructive merchant actions |
-| finance | Orders read, balance, payout, invoices, reports |
-| support | Orders, customers, complaints (limited write) |
+| Role    | Permissions                                                  |
+| ------- | ------------------------------------------------------------ |
+| owner   | Semua, termasuk billing, transfer ownership, delete merchant |
+| admin   | Semua kecuali billing & destructive merchant actions         |
+| finance | Orders read, balance, payout, invoices, reports              |
+| support | Orders, customers, complaints (limited write)                |
 
 Implementasi: matrix di `lib/permissions.ts`, middleware check di route group.
 
@@ -594,6 +600,7 @@ Implementasi: matrix di `lib/permissions.ts`, middleware check di route group.
 tambah Midtrans/Xendit nanti tanpa rewrite.
 
 **Customer order flow:**
+
 1. Mini app `POST /api/v1/orders` → create `pending_payment`
 2. Server call Tripay create-transaction API → return payment URL/QRIS
 3. Mini app render payment options
@@ -604,12 +611,14 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
    fee)
 
 **Subscription billing flow:**
+
 - Cron harian: cek subscription expiring dalam 7 hari → generate
   `platform_invoices` (type=subscription)
 - Email + bot notif merchant
 - Pembayaran via Tripay invoice link
 
 **Payout flow:**
+
 - Merchant request payout di dashboard
 - `merchant_payouts.status = requested`, `merchant_balances.available_idr` di-debit
 - Platform admin approve (auto-approve di tier pro+ di phase 2)
@@ -619,6 +628,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 ## 8. Key User Flows
 
 ### 8.1 Merchant Onboarding (target <10 menit)
+
 1. Sign up dashboard (email verify atau Telegram OAuth)
 2. Create merchant → input nama toko + slug
 3. Trial 14 hari aktif
@@ -633,6 +643,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 7. Bot ready jualan
 
 ### 8.2 Customer Beli Akun Premium
+
 1. Customer chat bot, klik "🛒 Buka Toko" → Mini App launch
 2. Browse kategori → produk → "Beli Sekarang"
 3. Login auto via initData HMAC verify
@@ -643,14 +654,15 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
      dll)
    - Bot send pesan ke customer
    - Stok status=sold, order delivered, set `warranty_until = now() +
-     warranty_days`
+warranty_days`
 6. Mini app + bot kasih notif "✅ Pesanan dikirim"
 7. Cron harian: pending_idr → available_idr (hold period 1 hari)
 
 ### 8.3 Komplain & Replace (auto mode)
+
 1. Customer di bot `/orders` atau mini app history
 2. Pilih order dalam masa garansi → "Komplain"
-3. Pilih alasan template ("Tidak bisa login", "Sudah di-kick", "Lainnya: ___")
+3. Pilih alasan template ("Tidak bisa login", "Sudah di-kick", "Lainnya: \_\_\_")
 4. Kalo `warranty_mode = auto`:
    - Job `replace` cek stok available
    - Ada: assign stok baru, kirim, `complaints.status = auto_resolved`
@@ -658,6 +670,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 5. Kalo `manual`: langsung `pending_review`, merchant approve di dashboard
 
 ### 8.4 Top Up Saldo Customer
+
 1. Bot atau mini app klik "Top Up"
 2. Input nominal atau pilih preset (50k/100k/200k/500k)
 3. Buat `balance_topups` + Tripay transaction
@@ -668,6 +681,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 5. Bot notif "✅ Saldo +Rp{amount}, total Rp{balance}"
 
 ### 8.5 Merchant Withdrawal
+
 1. Dashboard → Balance → "Tarik Saldo"
 2. Input nominal + pilih bank account (saved/baru)
 3. Submit → `merchant_payouts.status=requested`, available_idr di-debit
@@ -677,6 +691,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 ## 9. Cross-Cutting Concerns
 
 ### 9.1 Observability
+
 - **Logs**: structured JSON (`slog` Go, `pino` Next), aggregator Grafana Loki
 - **Metrics**: Prometheus + Grafana. Track webhook latency, delivery success
   rate, PG callback rate, RLS query distribution
@@ -684,6 +699,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
   rate > threshold
 
 ### 9.2 Error Handling
+
 - **Idempotency keys** wajib di:
   - PG webhook (`pg_reference`)
   - Delivery job (`order_id`)
@@ -695,6 +711,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 - **No silent failures**: tiap exception worker → log + alert
 
 ### 9.3 Testing Strategy
+
 - **Unit**: pricing, balance calc, voucher rules, RLS policy enforcement
 - **Integration**: API + DB (testcontainers Postgres + Redis)
 - **E2E**: Playwright dashboard core flow (login → create product → view order)
@@ -703,6 +720,7 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 - **RLS test suite**: fixture multi-tenant, assert no cross-tenant access
 
 ### 9.4 Security
+
 - Encryption at rest: bot tokens, bank account numbers
 - Rate limit per IP di auth endpoints (Redis token bucket)
 - Security headers: CSP, HSTS, X-Frame-Options
@@ -713,12 +731,14 @@ tambah Midtrans/Xendit nanti tanpa rewrite.
 ### 9.5 Deployment
 
 **Coolify on Hetzner VPS:**
+
 - 3 service: `web` (Next.js), `bot` (Go server mode), `worker` (Go worker mode)
 - Built-in service: Postgres, Redis, MinIO
 - CI: GitHub Actions → build Docker images → push GHCR → Coolify auto-deploy
   on tag
 
 **Monorepo structure:**
+
 ```
 lapakgram/
 ├── apps/

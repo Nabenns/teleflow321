@@ -71,6 +71,7 @@ lapakgram/
 ## Task 1: Initialize Monorepo Skeleton
 
 **Files:**
+
 - Create: `package.json`
 - Create: `pnpm-workspace.yaml`
 - Create: `turbo.json`
@@ -274,6 +275,7 @@ git commit -m "chore: initialize monorepo skeleton (pnpm + turborepo + tsconfig 
 ## Task 2: Docker Compose Dev Environment
 
 **Files:**
+
 - Create: `docker-compose.yml`
 - Create: `.env.example`
 
@@ -383,15 +385,19 @@ Then: `docker compose ps`
 Expected: 3 services (postgres, redis, minio) status `healthy`. Tunggu sampe semua healthy (~30 detik).
 
 Verify Postgres:
+
 ```bash
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "SELECT version();"
 ```
+
 Expected: PostgreSQL 16.x output.
 
 Verify Redis:
+
 ```bash
 docker exec lapakgram-redis redis-cli PING
 ```
+
 Expected: `PONG`
 
 Verify MinIO console (open browser): http://localhost:9001 — login `lapakgram` / `lapakgram_dev_minio`.
@@ -412,6 +418,7 @@ git commit -m "chore: add docker compose dev environment (postgres + redis + min
 ## Task 3: Bootstrap apps/web (Next.js 15)
 
 **Files:**
+
 - Create: `apps/web/package.json`
 - Create: `apps/web/tsconfig.json`
 - Create: `apps/web/next.config.ts`
@@ -478,12 +485,7 @@ git commit -m "chore: add docker compose dev environment (postgres + redis + min
       "@/*": ["./*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
 ```
@@ -605,6 +607,7 @@ git commit -m "feat(web): bootstrap Next.js 15 app with Tailwind"
 ## Task 4: Set up packages/db with Drizzle
 
 **Files:**
+
 - Create: `packages/db/package.json`
 - Create: `packages/db/tsconfig.json`
 - Create: `packages/db/drizzle.config.ts`
@@ -758,6 +761,7 @@ git commit -m "feat(db): scaffold drizzle package skeleton"
 ## Task 5: Define Platform-Level Schema
 
 **Files:**
+
 - Modify: `packages/db/src/schema/platform.ts`
 
 - [ ] **Step 1: Replace stub with full platform schema**
@@ -825,7 +829,9 @@ export const plans = pgTable(
     monthlyPriceIdr: integer("monthly_price_idr").notNull().default(0),
     yearlyPriceIdr: integer("yearly_price_idr").notNull().default(0),
     transactionFeeBps: integer("transaction_fee_bps").notNull().default(0),
-    limits: jsonb("limits").notNull().default(sql`'{}'::jsonb`),
+    limits: jsonb("limits")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -982,9 +988,11 @@ Expected: File baru `packages/db/migrations/0000_<name>.sql` ada, berisi CREATE 
 Pastikan `pnpm dev:up` jalan. Run: `pnpm db:migrate`
 
 Expected: Migration applied. Verify:
+
 ```bash
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "\dt"
 ```
+
 Expected output: 6 tabel (`users`, `plans`, `merchants`, `merchant_members`, `subscriptions`, `platform_invoices`) plus `__drizzle_migrations`.
 
 - [ ] **Step 5: Commit**
@@ -999,6 +1007,7 @@ git commit -m "feat(db): add platform-level schema (users, merchants, plans, sub
 ## Task 6: Define Tenant-Scoped Schema
 
 **Files:**
+
 - Modify: `packages/db/src/schema/tenant.ts`
 
 - [ ] **Step 1: Replace stub with full tenant schema**
@@ -1180,7 +1189,10 @@ export const vouchers = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     productScope: text("product_scope").notNull().default("all"),
-    scopeIds: uuid("scope_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    scopeIds: uuid("scope_ids")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::uuid[]`),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1362,10 +1374,7 @@ export const merchantPayouts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    merchantStatusIdx: index("merchant_payouts_merchant_status_idx").on(
-      t.merchantId,
-      t.status,
-    ),
+    merchantStatusIdx: index("merchant_payouts_merchant_status_idx").on(t.merchantId, t.status),
   }),
 );
 
@@ -1426,9 +1435,11 @@ Expected: New file `packages/db/migrations/0001_<name>.sql` (atau folder dengan 
 Run: `pnpm db:migrate`
 
 Expected: All tables created. Verify count:
+
 ```bash
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
 ```
+
 Expected: ≥21 (6 platform + 14 tenant + drizzle migrations table).
 
 - [ ] **Step 5: Commit**
@@ -1443,6 +1454,7 @@ git commit -m "feat(db): add tenant-scoped schema (customers, products, orders, 
 ## Task 7: Apply RLS Policies (manual SQL migration)
 
 **Files:**
+
 - Create: `packages/db/src/rls.ts`
 - Create: `packages/db/migrations/0002_rls_policies.sql` (manual)
 
@@ -1465,7 +1477,9 @@ import type { LapakgramDb } from "./index.js";
  *   });
  */
 export async function setTenantContext(
-  db: LapakgramDb | Parameters<LapakgramDb["transaction"]>[0] extends (tx: infer T) => unknown ? T : never,
+  db: LapakgramDb | Parameters<LapakgramDb["transaction"]>[0] extends (tx: infer T) => unknown
+    ? T
+    : never,
   merchantId: string,
 ): Promise<void> {
   // SET LOCAL only takes effect inside an explicit transaction.
@@ -1476,7 +1490,9 @@ export async function setTenantContext(
  * Reset the tenant context to NULL. Useful for shared/admin queries.
  */
 export async function clearTenantContext(
-  db: LapakgramDb | Parameters<LapakgramDb["transaction"]>[0] extends (tx: infer T) => unknown ? T : never,
+  db: LapakgramDb | Parameters<LapakgramDb["transaction"]>[0] extends (tx: infer T) => unknown
+    ? T
+    : never,
 ): Promise<void> {
   await db.execute(sql`SELECT set_config('app.current_merchant_id', '', true)`);
 }
@@ -1579,15 +1595,19 @@ END $$;
 Run: `pnpm db:migrate`
 
 Expected: Migration applied. Verify:
+
 ```bash
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname='public' AND tablename IN ('customers','products','orders');"
 ```
+
 Expected: Semua `rowsecurity` = `t`.
 
 Verify policy exists:
+
 ```bash
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "SELECT tablename, policyname FROM pg_policies WHERE schemaname='public';"
 ```
+
 Expected: 14 rows (1 policy per tenant table).
 
 - [ ] **Step 4: Commit**
@@ -1602,6 +1622,7 @@ git commit -m "feat(db): enable RLS with tenant_isolation policy on tenant table
 ## Task 8: Encryption Utility (TDD)
 
 **Files:**
+
 - Create: `apps/web/lib/crypto.ts`
 - Create: `apps/web/tests/crypto.test.ts`
 - Modify: `apps/web/package.json` (add vitest config)
@@ -1771,6 +1792,7 @@ git commit -m "feat(web): add AES-256-GCM secret encryption utility"
 ## Task 9: RLS Multi-Tenant Isolation Test Suite (TDD)
 
 **Files:**
+
 - Create: `packages/db/tests/setup.ts`
 - Create: `packages/db/tests/rls.test.ts`
 - Create: `packages/db/vitest.config.ts`
@@ -2057,6 +2079,7 @@ git commit -m "test(db): add RLS multi-tenant isolation suite (testcontainers)"
 ## Task 10: GitHub Actions CI
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 - Create: `.prettierrc.json`
 - Create: `.prettierignore`
@@ -2167,6 +2190,7 @@ git commit -m "ci: add GitHub Actions workflow (format, typecheck, lint, test)"
 ## Task 11: README & Dev Setup Docs
 
 **Files:**
+
 - Create: `README.md`
 
 - [ ] **Step 1: Create README.md**
@@ -2254,6 +2278,7 @@ await db.transaction(async (tx) => {
 
 Test isolasi RLS hidup di `packages/db/tests/rls.test.ts`. Kalau nambahin
 tabel tenant baru, tambahin nama-nya ke:
+
 - `packages/db/src/rls.ts` (`TENANT_TABLES`)
 - `packages/db/migrations/0002_rls_policies.sql` (atau migration RLS baru)
 - Test fixture di `packages/db/tests/rls.test.ts`
@@ -2262,13 +2287,13 @@ tabel tenant baru, tambahin nama-nya ke:
 
 Lihat `.env.example`. Yang wajib di-set sebelum run:
 
-| Var | Deskripsi |
-|---|---|
-| `DATABASE_URL` | Postgres URL |
-| `REDIS_URL` | Redis URL |
-| `MASTER_ENCRYPTION_KEY` | 32-byte base64, untuk encrypt bot token |
-| `INTERNAL_SERVICE_TOKEN` | Shared token web ↔ bot |
-| `NEXTAUTH_SECRET` | NextAuth signing key |
+| Var                      | Deskripsi                               |
+| ------------------------ | --------------------------------------- |
+| `DATABASE_URL`           | Postgres URL                            |
+| `REDIS_URL`              | Redis URL                               |
+| `MASTER_ENCRYPTION_KEY`  | 32-byte base64, untuk encrypt bot token |
+| `INTERNAL_SERVICE_TOKEN` | Shared token web ↔ bot                  |
+| `NEXTAUTH_SECRET`        | NextAuth signing key                    |
 
 Generate fresh encryption key:
 
@@ -2278,18 +2303,18 @@ openssl rand -base64 32
 
 ## Useful scripts
 
-| Command | What it does |
-|---|---|
-| `pnpm dev:up` | Start Postgres, Redis, MinIO |
-| `pnpm dev:down` | Stop services |
-| `pnpm dev:reset` | Stop + delete volumes |
+| Command            | What it does                                |
+| ------------------ | ------------------------------------------- |
+| `pnpm dev:up`      | Start Postgres, Redis, MinIO                |
+| `pnpm dev:down`    | Stop services                               |
+| `pnpm dev:reset`   | Stop + delete volumes                       |
 | `pnpm db:generate` | Generate Drizzle migration from schema diff |
-| `pnpm db:migrate` | Apply pending migrations |
-| `pnpm db:studio` | Open Drizzle Studio (DB GUI) |
-| `pnpm test` | Run all tests |
-| `pnpm typecheck` | TS typecheck across workspaces |
-| `pnpm lint` | Lint |
-| `pnpm format` | Prettier write |
+| `pnpm db:migrate`  | Apply pending migrations                    |
+| `pnpm db:studio`   | Open Drizzle Studio (DB GUI)                |
+| `pnpm test`        | Run all tests                               |
+| `pnpm typecheck`   | TS typecheck across workspaces              |
+| `pnpm lint`        | Lint                                        |
+| `pnpm format`      | Prettier write                              |
 
 ## Plans & specs
 
@@ -2311,6 +2336,7 @@ git commit -m "docs: add README with dev setup, RLS usage, env vars, and scripts
 Aku verify ulang plan ini terhadap spec sebelum hand off.
 
 **Spec coverage (yang masuk Plan 1):**
+
 - ✅ Monorepo + pnpm + Turborepo (spec §9.5)
 - ✅ Docker Compose Postgres + Redis + MinIO (spec §4.3)
 - ✅ Platform-level schema (spec §5.2)
@@ -2328,6 +2354,7 @@ Semua coverage Plan 1 hadir. Tidak ada gap.
 **Placeholder scan:** Sudah di-check, semua step punya kode/command konkret. Tidak ada "TBD" / "implement later" / "similar to Task N".
 
 **Type consistency:**
+
 - `merchants.botTokenEncrypted` (BYTEA) — disebut konsisten di schema, encryption util, dan README
 - `TENANT_TABLES` di `rls.ts` cocok dengan tabel di migration `0002_rls_policies.sql` (14 tabel, sama persis)
 - `setTenantContext` signature konsisten di `rls.ts`, README, dan test fixture
@@ -2353,6 +2380,7 @@ pnpm test
 ```
 
 Expected:
+
 - Migrations apply clean dari nol
 - Typecheck zero errors
 - Lint zero errors

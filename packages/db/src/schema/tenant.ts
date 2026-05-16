@@ -196,7 +196,10 @@ export const vouchers = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     productScope: text("product_scope").notNull().default("all"),
-    scopeIds: uuid("scope_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    scopeIds: uuid("scope_ids")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::uuid[]`),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -379,10 +382,7 @@ export const merchantPayouts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    merchantStatusIdx: index("merchant_payouts_merchant_status_idx").on(
-      t.merchantId,
-      t.status,
-    ),
+    merchantStatusIdx: index("merchant_payouts_merchant_status_idx").on(t.merchantId, t.status),
   }),
 );
 

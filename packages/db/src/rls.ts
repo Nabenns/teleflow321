@@ -7,9 +7,7 @@ import type { LapakgramDb } from "./index.js";
  * postgres-js directly. The first argument to `db.transaction(fn)` is the
  * transaction object we want to type.
  */
-type LapakgramTx = Parameters<LapakgramDb["transaction"]>[0] extends (
-  tx: infer T,
-) => unknown
+type LapakgramTx = Parameters<LapakgramDb["transaction"]>[0] extends (tx: infer T) => unknown
   ? T
   : never;
 
@@ -29,13 +27,8 @@ type LapakgramTx = Parameters<LapakgramDb["transaction"]>[0] extends (
  * — calling `set_config(..., true)` outside a transaction does nothing,
  * which would silently bypass RLS.
  */
-export async function setTenantContext(
-  tx: LapakgramTx,
-  merchantId: string,
-): Promise<void> {
-  await tx.execute(
-    sql`SELECT set_config('app.current_merchant_id', ${merchantId}, true)`,
-  );
+export async function setTenantContext(tx: LapakgramTx, merchantId: string): Promise<void> {
+  await tx.execute(sql`SELECT set_config('app.current_merchant_id', ${merchantId}, true)`);
 }
 
 /**
@@ -45,12 +38,8 @@ export async function setTenantContext(
  * used in tests to verify the deny-by-default path. App code rarely calls
  * this; the txn-local config resets automatically at transaction end.
  */
-export async function clearTenantContext(
-  tx: LapakgramTx,
-): Promise<void> {
-  await tx.execute(
-    sql`SELECT set_config('app.current_merchant_id', '', true)`,
-  );
+export async function clearTenantContext(tx: LapakgramTx): Promise<void> {
+  await tx.execute(sql`SELECT set_config('app.current_merchant_id', '', true)`);
 }
 
 /**
