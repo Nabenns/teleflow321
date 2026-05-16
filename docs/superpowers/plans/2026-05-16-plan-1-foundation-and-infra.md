@@ -286,7 +286,9 @@ services:
       POSTGRES_PASSWORD: lapakgram_dev
       POSTGRES_DB: lapakgram
     ports:
-      - "5432:5432"
+      # Host port 5434 to avoid conflict with native Postgres (5432) and the
+      # sibling Lapakflow project. Container-side stays 5432.
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -301,7 +303,8 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      # Host port 6380 to avoid conflict with sibling Lapakflow Redis on 6379.
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -339,10 +342,10 @@ volumes:
 
 ```bash
 # Database
-DATABASE_URL=postgres://lapakgram:lapakgram_dev@localhost:5432/lapakgram
+DATABASE_URL=postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram
 
 # Redis
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6380
 
 # MinIO / S3
 S3_ENDPOINT=http://localhost:9000
