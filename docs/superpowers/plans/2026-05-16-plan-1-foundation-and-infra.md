@@ -638,7 +638,7 @@ git commit -m "feat(web): bootstrap Next.js 15 app with Tailwind"
   "devDependencies": {
     "@types/node": "^22.9.0",
     "@testcontainers/postgresql": "^10.13.2",
-    "drizzle-kit": "^0.28.0",
+    "drizzle-kit": "^0.31.0",
     "testcontainers": "^10.13.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
