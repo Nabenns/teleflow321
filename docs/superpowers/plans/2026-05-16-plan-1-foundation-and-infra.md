@@ -2041,7 +2041,7 @@ describe("RLS tenant isolation", () => {
 
 Pastikan `pnpm dev:up` jalan (testcontainers butuh docker daemon). Run: `pnpm --filter @lapakgram/db test`
 
-Expected: All 6 tests pass. First run lambat (~30-60s) karena pull image testcontainers.
+Expected: All 7 tests pass. First run lambat (~30-60s) karena pull image testcontainers.
 
 Catatan: kalau test ke-4 (`INSERT with mismatched`) lewat berarti `WITH CHECK` di policy bekerja. Kalau gagal, periksa migration RLS — mungkin policy `WITH CHECK` belum kena.
 
