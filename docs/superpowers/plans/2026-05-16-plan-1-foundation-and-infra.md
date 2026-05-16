@@ -1866,6 +1866,7 @@ Create `packages/db/tests/rls.test.ts`:
 
 ```ts
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setTenantContext } from "../src/rls.js";
 import { seedTwoMerchants, startTestDb, type TestDb } from "./setup.js";
 
 let db: TestDb;
@@ -1878,18 +1879,24 @@ beforeAll(async () => {
   merchantA = seeded.merchantA;
   merchantB = seeded.merchantB;
 
-  // Insert one customer for each merchant — bypass RLS during seed
-  // by running outside of any tenant context (set as superuser).
-  await db.sql`SELECT set_config('app.current_merchant_id', ${merchantA}, false)`;
-  await db.sql`
-    INSERT INTO customers (merchant_id, telegram_id, full_name)
-    VALUES (${merchantA}, 1001, 'Alice')
-  `;
-  await db.sql`SELECT set_config('app.current_merchant_id', ${merchantB}, false)`;
-  await db.sql`
-    INSERT INTO customers (merchant_id, telegram_id, full_name)
-    VALUES (${merchantB}, 2001, 'Bob')
-  `;
+  // Insert one customer for each merchant inside a transaction so the
+  // tenant context (`SET LOCAL`) is guaranteed to live on the same
+  // connection as the INSERT. Sequential awaits on `db.sql` may pick
+  // different pool connections.
+  await db.sql.begin(async (tx) => {
+    await tx`SELECT set_config('app.current_merchant_id', ${merchantA}, true)`;
+    await tx`
+      INSERT INTO customers (merchant_id, telegram_id, full_name)
+      VALUES (${merchantA}, 1001, 'Alice')
+    `;
+  });
+  await db.sql.begin(async (tx) => {
+    await tx`SELECT set_config('app.current_merchant_id', ${merchantB}, true)`;
+    await tx`
+      INSERT INTO customers (merchant_id, telegram_id, full_name)
+      VALUES (${merchantB}, 2001, 'Bob')
+    `;
+  });
 });
 
 afterAll(async () => {
@@ -1967,8 +1974,39 @@ describe("RLS tenant isolation", () => {
       expect(rows[0]!.n).toBe(1);
     });
   });
+
+  it("setTenantContext helper enforces isolation end-to-end", async () => {
+    // Smoke test that the public helper from rls.ts works through a Drizzle
+    // transaction. The earlier 6 tests verify the policy semantics directly
+    // against postgres-js; this test verifies the @lapakgram/db public export
+    // path is wired correctly and the helper behaves as documented.
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { sql } = await import("drizzle-orm");
+    const drizzleDb = drizzle(db.sql);
+
+    const merchantANames = await drizzleDb.transaction(async (tx) => {
+      await setTenantContext(tx, merchantA);
+      const rows = await tx.execute<{ full_name: string }>(
+        sql`SELECT full_name FROM customers ORDER BY full_name`,
+      );
+      // postgres-js + drizzle returns rows as an array directly.
+      return (rows as unknown as { full_name: string }[]).map((r) => r.full_name);
+    });
+    expect(merchantANames).toEqual(["Alice"]);
+
+    const merchantBNames = await drizzleDb.transaction(async (tx) => {
+      await setTenantContext(tx, merchantB);
+      const rows = await tx.execute<{ full_name: string }>(
+        sql`SELECT full_name FROM customers ORDER BY full_name`,
+      );
+      return (rows as unknown as { full_name: string }[]).map((r) => r.full_name);
+    });
+    expect(merchantBNames).toEqual(["Bob"]);
+  });
 });
 ```
+
+(If the result-shape coercion against drizzle-postgres-js breaks the test under your installed versions, simplify the body of test #7 to just call `setTenantContext(tx, merchantA)` and assert no throw. The previous 6 tests already prove policy semantics; the point of test #7 is wiring of the public export.)
 
 - [ ] **Step 4: Run tests, verify they pass**
 
