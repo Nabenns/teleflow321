@@ -14,34 +14,41 @@ type LapakgramTx = Parameters<LapakgramDb["transaction"]>[0] extends (
   : never;
 
 /**
- * Set the current merchant tenant context for RLS-protected queries.
- * MUST be called inside a transaction; the setting is local and resets at
- * txn end (`set_config(..., true)` writes a transaction-local GUC).
+ * Set the current merchant tenant context for RLS-protected queries on this transaction.
+ *
+ * Pass a transaction handle (the `tx` argument from `db.transaction(async (tx) => ...)`).
+ * The setting is transaction-local; it resets automatically when the transaction commits or rolls back.
  *
  * Usage:
  *   await db.transaction(async (tx) => {
  *     await setTenantContext(tx, merchantId);
  *     return tx.select().from(products);
  *   });
+ *
+ * The type signature requires a transaction handle to prevent silent no-ops
+ * — calling `set_config(..., true)` outside a transaction does nothing,
+ * which would silently bypass RLS.
  */
 export async function setTenantContext(
-  db: LapakgramDb | LapakgramTx,
+  tx: LapakgramTx,
   merchantId: string,
 ): Promise<void> {
-  await db.execute(
+  await tx.execute(
     sql`SELECT set_config('app.current_merchant_id', ${merchantId}, true)`,
   );
 }
 
 /**
- * Reset the tenant context to an empty string. With the `tenant_isolation`
- * policy, an empty GUC denies all rows (deny by default). Useful between
- * statements within a transaction to scope a sub-query to "no tenant".
+ * Clears the merchant tenant context (sets the GUC to empty string).
+ *
+ * The `tenant_isolation` policy treats empty-string as deny-all. Primarily
+ * used in tests to verify the deny-by-default path. App code rarely calls
+ * this; the txn-local config resets automatically at transaction end.
  */
 export async function clearTenantContext(
-  db: LapakgramDb | LapakgramTx,
+  tx: LapakgramTx,
 ): Promise<void> {
-  await db.execute(
+  await tx.execute(
     sql`SELECT set_config('app.current_merchant_id', '', true)`,
   );
 }

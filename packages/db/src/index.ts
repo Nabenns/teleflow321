@@ -11,3 +11,4 @@ export function createDb(url: string, options?: { max?: number }) {
 
 export { schema };
 export * from "./schema/index.js";
+export * from "./rls.js";

@@ -31,12 +31,12 @@ BEGIN
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I
          USING (
-           merchant_id::text = current_setting(''app.current_merchant_id'', true)
-           AND current_setting(''app.current_merchant_id'', true) <> ''''
+           current_setting(''app.current_merchant_id'', true) <> ''''
+           AND merchant_id = current_setting(''app.current_merchant_id'', true)::uuid
          )
          WITH CHECK (
-           merchant_id::text = current_setting(''app.current_merchant_id'', true)
-           AND current_setting(''app.current_merchant_id'', true) <> ''''
+           current_setting(''app.current_merchant_id'', true) <> ''''
+           AND merchant_id = current_setting(''app.current_merchant_id'', true)::uuid
          )',
       t
     );
