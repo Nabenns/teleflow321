@@ -1,0 +1,8 @@
+node_modules
+.next
+dist
+build
+.turbo
+coverage
+pnpm-lock.yaml
+packages/db/migrations/**/*.sql
