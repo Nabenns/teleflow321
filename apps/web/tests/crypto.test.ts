@@ -34,7 +34,7 @@ describe("crypto", () => {
     const key = generateEncryptionKey();
     const ciphertext = encryptSecret("hello", key);
     // Flip last byte (auth tag region)
-    ciphertext[ciphertext.length - 1] ^= 0x01;
+    ciphertext[ciphertext.length - 1]! ^= 0x01;
     expect(() => decryptSecret(ciphertext, key)).toThrow();
   });
 
@@ -43,7 +43,7 @@ describe("crypto", () => {
     // 12-byte nonce + ciphertext body + 16-byte tag.
     // Flip a byte inside the ciphertext body.
     const ciphertext = encryptSecret("hello world", key);
-    ciphertext[12 + 1] ^= 0x01;
+    ciphertext[12 + 1]! ^= 0x01;
     expect(() => decryptSecret(ciphertext, key)).toThrow();
   });
 
@@ -51,7 +51,7 @@ describe("crypto", () => {
     const key = generateEncryptionKey();
     const ciphertext = encryptSecret("hello", key);
     // Flip a byte inside the nonce region (first 12 bytes).
-    ciphertext[3] ^= 0x01;
+    ciphertext[3]! ^= 0x01;
     expect(() => decryptSecret(ciphertext, key)).toThrow();
   });
 
