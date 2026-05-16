@@ -95,13 +95,13 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "platform_invoices" ADD CONSTRAINT "platform_invoices_merchant_id_merchants_id_fk" FOREIGN KEY ("merchant_id") REFERENCES "public"."merchants"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "platform_invoices" ADD CONSTRAINT "platform_invoices_merchant_id_merchants_id_fk" FOREIGN KEY ("merchant_id") REFERENCES "public"."merchants"("id") ON DELETE restrict ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_merchant_id_merchants_id_fk" FOREIGN KEY ("merchant_id") REFERENCES "public"."merchants"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_merchant_id_merchants_id_fk" FOREIGN KEY ("merchant_id") REFERENCES "public"."merchants"("id") ON DELETE restrict ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -117,8 +117,10 @@ CREATE INDEX IF NOT EXISTS "merchant_members_user_idx" ON "merchant_members" USI
 CREATE UNIQUE INDEX IF NOT EXISTS "merchants_slug_idx" ON "merchants" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "merchants_webhook_secret_idx" ON "merchants" USING btree ("webhook_secret");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "merchants_bot_id_idx" ON "merchants" USING btree ("bot_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "merchants_plan_id_idx" ON "merchants" USING btree ("plan_id");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "plans_code_idx" ON "plans" USING btree ("code");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "platform_invoices_merchant_idx" ON "platform_invoices" USING btree ("merchant_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "platform_invoices_pg_ref_idx" ON "platform_invoices" USING btree ("pg_reference");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "subscriptions_plan_id_idx" ON "subscriptions" USING btree ("plan_id");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "users_telegram_id_idx" ON "users" USING btree ("telegram_id");

@@ -35,7 +35,10 @@ export const users = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     emailIdx: uniqueIndex("users_email_idx").on(t.email),
@@ -83,12 +86,16 @@ export const merchants = pgTable(
     planId: uuid("plan_id").references(() => plans.id),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     slugIdx: uniqueIndex("merchants_slug_idx").on(t.slug),
     webhookSecretIdx: index("merchants_webhook_secret_idx").on(t.webhookSecret),
     botIdIdx: index("merchants_bot_id_idx").on(t.botId),
+    planIdIdx: index("merchants_plan_id_idx").on(t.planId),
   }),
 );
 
@@ -125,7 +132,7 @@ export const subscriptions = pgTable(
     merchantId: uuid("merchant_id")
       .notNull()
       .unique()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     planId: uuid("plan_id")
       .notNull()
       .references(() => plans.id),
@@ -133,8 +140,14 @@ export const subscriptions = pgTable(
     status: text("status").notNull(),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
+  (t) => ({
+    planIdIdx: index("subscriptions_plan_id_idx").on(t.planId),
+  }),
 );
 
 // ============================================================
@@ -146,7 +159,7 @@ export const platformInvoices = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     type: text("type").notNull(),
     amountIdr: integer("amount_idr").notNull(),
     status: text("status").notNull().default("pending"),
