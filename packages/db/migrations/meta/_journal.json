@@ -8,6 +8,13 @@
       "when": 1778947513785,
       "tag": "0000_careless_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778948519785,
+      "tag": "0001_milky_black_bolt",
+      "breakpoints": true
     }
   ]
 }
