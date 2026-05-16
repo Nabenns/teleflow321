@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    testTimeout: 60000, // testcontainers can be slow on cold start
-    hookTimeout: 60000,
+    // Individual tests should be fast; a long testTimeout would hide hung queries.
+    testTimeout: 10_000,
+    // Hooks (beforeAll) include cold container pull on first run; keep generous.
+    hookTimeout: 90_000,
   },
 });

@@ -73,7 +73,7 @@ describe("RLS tenant isolation", () => {
           VALUES (${merchantB}, 9999, 'Mallory')
         `;
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/row-level security|new row violates/i);
   });
 
   it("UPDATE cannot touch rows of another merchant", async () => {

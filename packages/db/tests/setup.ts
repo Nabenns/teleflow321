@@ -55,6 +55,21 @@ export async function startTestDb(): Promise<TestDb> {
   const url = `postgres://app_user:app_user@${container.getHost()}:${container.getPort()}/${container.getDatabase()}`;
   const sql = postgres(url, { max: 5, onnotice: () => {} });
 
+  // Hardening invariant: if a future maintainer accidentally grants the
+  // test pool SUPERUSER or BYPASSRLS, the entire RLS test suite reverts to
+  // false-positive mode (every test passes against any policy, including
+  // a broken one). Fail fast at startup instead.
+  const [poolMeta] = await sql`
+    SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user
+  `;
+  if (!poolMeta || poolMeta.rolsuper || poolMeta.rolbypassrls) {
+    await sql.end({ timeout: 5 });
+    await container.stop();
+    throw new Error(
+      `test pool must not bypass RLS (got rolsuper=${poolMeta?.rolsuper}, rolbypassrls=${poolMeta?.rolbypassrls})`,
+    );
+  }
+
   return {
     url,
     container,
