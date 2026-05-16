@@ -1039,7 +1039,10 @@ export const customers = pgTable(
     balanceIdr: bigint("balance_idr", { mode: "number" }).notNull().default(0),
     totalSpentIdr: bigint("total_spent_idr", { mode: "number" }).notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     merchantTelegramIdx: uniqueIndex("customers_merchant_telegram_idx").on(
@@ -1097,7 +1100,10 @@ export const products = pgTable(
     position: integer("position").notNull().default(0),
     imageUrl: text("image_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     merchantSlugIdx: uniqueIndex("products_merchant_slug_idx").on(t.merchantId, t.slug),
@@ -1192,7 +1198,7 @@ export const orders = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "restrict" }),
@@ -1209,7 +1215,10 @@ export const orders = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     merchantNumberIdx: uniqueIndex("orders_merchant_number_idx").on(t.merchantId, t.orderNumber),
@@ -1228,7 +1237,7 @@ export const orderItems = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "cascade" }),
@@ -1244,6 +1253,7 @@ export const orderItems = pgTable(
   (t) => ({
     orderIdx: index("order_items_order_idx").on(t.orderId),
     merchantIdx: index("order_items_merchant_idx").on(t.merchantId),
+    productIdx: index("order_items_product_idx").on(t.productId),
   }),
 );
 
@@ -1256,10 +1266,10 @@ export const balanceTopups = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     customerId: uuid("customer_id")
       .notNull()
-      .references(() => customers.id, { onDelete: "cascade" }),
+      .references(() => customers.id, { onDelete: "restrict" }),
     amountIdr: integer("amount_idr").notNull(),
     status: text("status").notNull().default("pending"),
     paymentMethod: text("payment_method").notNull(),
@@ -1269,6 +1279,7 @@ export const balanceTopups = pgTable(
   },
   (t) => ({
     customerIdx: index("balance_topups_customer_idx").on(t.customerId),
+    merchantIdx: index("balance_topups_merchant_idx").on(t.merchantId),
     pgRefIdx: index("balance_topups_pg_ref_idx").on(t.pgReference),
   }),
 );
@@ -1282,10 +1293,10 @@ export const balanceTransactions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     customerId: uuid("customer_id")
       .notNull()
-      .references(() => customers.id, { onDelete: "cascade" }),
+      .references(() => customers.id, { onDelete: "restrict" }),
     type: text("type").notNull(),
     amountIdr: bigint("amount_idr", { mode: "number" }).notNull(),
     balanceAfter: bigint("balance_after", { mode: "number" }).notNull(),
@@ -1308,13 +1319,13 @@ export const complaints = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     orderItemId: uuid("order_item_id")
       .notNull()
       .references(() => orderItems.id, { onDelete: "cascade" }),
     customerId: uuid("customer_id")
       .notNull()
-      .references(() => customers.id, { onDelete: "cascade" }),
+      .references(() => customers.id, { onDelete: "restrict" }),
     reason: text("reason").notNull(),
     status: text("status").notNull().default("open"),
     resolution: text("resolution"),
@@ -1325,6 +1336,7 @@ export const complaints = pgTable(
   },
   (t) => ({
     orderItemIdx: index("complaints_order_item_idx").on(t.orderItemId),
+    customerIdx: index("complaints_customer_idx").on(t.customerId),
     merchantStatusIdx: index("complaints_merchant_status_idx").on(t.merchantId, t.status),
   }),
 );
@@ -1338,7 +1350,7 @@ export const merchantPayouts = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     amountIdr: bigint("amount_idr", { mode: "number" }).notNull(),
     bankCode: text("bank_code").notNull(),
     accountNumber: text("account_number").notNull(),
@@ -1363,10 +1375,13 @@ export const merchantPayouts = pgTable(
 export const merchantBalances = pgTable("merchant_balances", {
   merchantId: uuid("merchant_id")
     .primaryKey()
-    .references(() => merchants.id, { onDelete: "cascade" }),
+    .references(() => merchants.id, { onDelete: "restrict" }),
   availableIdr: bigint("available_idr", { mode: "number" }).notNull().default(0),
   pendingIdr: bigint("pending_idr", { mode: "number" }).notNull().default(0),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 // ============================================================
@@ -1378,7 +1393,7 @@ export const auditLogs = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     merchantId: uuid("merchant_id")
       .notNull()
-      .references(() => merchants.id, { onDelete: "cascade" }),
+      .references(() => merchants.id, { onDelete: "restrict" }),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     action: text("action").notNull(),
     entityType: text("entity_type"),
@@ -1389,6 +1404,7 @@ export const auditLogs = pgTable(
   },
   (t) => ({
     merchantCreatedIdx: index("audit_logs_merchant_created_idx").on(t.merchantId, t.createdAt),
+    userIdx: index("audit_logs_user_idx").on(t.userId),
   }),
 );
 ```
