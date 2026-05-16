@@ -2223,10 +2223,10 @@ dapet bot Telegram sendiri, mini app e-commerce, dan dashboard web.
 # 1. Install deps
 pnpm install
 
-# 2. Copy env
+# 2. Copy env (Windows PowerShell: `Copy-Item .env.example .env`)
 cp .env.example .env
 
-# 3. Start dev infra
+# 3. Start dev infra (Postgres on 5434, Redis on 6380, MinIO on 9000/9001)
 pnpm dev:up
 
 # 4. Apply migrations
@@ -2236,11 +2236,15 @@ pnpm db:migrate
 pnpm --filter @lapakgram/web dev
 # → http://localhost:3000
 
-# 6. Run all tests
+# 6. Run all tests (requires Docker for testcontainers)
 pnpm test
 ```
 
 Stop infra: `pnpm dev:down`. Reset infra (delete volumes): `pnpm dev:reset`.
+
+> **Why non-default ports?** Lapakgram coexists with sibling projects (Lapakflow,
+> native Postgres) that already use 5432 and 6379 on dev machines. Container-side
+> ports remain standard; only the host bindings shift to 5434 and 6380.
 
 ## Repository layout
 
@@ -2268,7 +2272,9 @@ ngeblok cross-tenant access.
 Contoh penggunaan dari TypeScript:
 
 ```ts
-import { setTenantContext } from "@lapakgram/db/rls";
+import { createDb, setTenantContext } from "@lapakgram/db";
+
+const db = createDb(process.env.DATABASE_URL!);
 
 await db.transaction(async (tx) => {
   await setTenantContext(tx, currentMerchantId);
@@ -2276,12 +2282,21 @@ await db.transaction(async (tx) => {
 });
 ```
 
+`setTenantContext` accepts only a transaction handle (not the top-level `db`)
+because `set_config(..., true)` is transaction-local — calling it on a pooled
+connection outside a transaction silently no-ops, which would bypass RLS.
+
 Test isolasi RLS hidup di `packages/db/tests/rls.test.ts`. Kalau nambahin
 tabel tenant baru, tambahin nama-nya ke:
 
 - `packages/db/src/rls.ts` (`TENANT_TABLES`)
-- `packages/db/migrations/0002_rls_policies.sql` (atau migration RLS baru)
-- Test fixture di `packages/db/tests/rls.test.ts`
+- Tulis migration baru via `pnpm --filter @lapakgram/db exec drizzle-kit generate --custom --name rls_<table>` lalu paste `ALTER TABLE ... ENABLE/FORCE ROW LEVEL SECURITY` + `CREATE POLICY tenant_isolation ON ...` (mirror policy SQL di `0002_rls_policies.sql`)
+- Test fixture di `packages/db/tests/rls.test.ts` — extend coverage to the new table
+
+Note: the RLS test pool connects as a non-superuser `app_user` role (created in
+`packages/db/tests/setup.ts`) because Postgres superusers bypass RLS even with
+`FORCE ROW LEVEL SECURITY`. Jangan ubah ini tanpa verify ulang invariant check
+di setup.ts.
 
 ## Environment variables
 
@@ -2298,7 +2313,10 @@ Lihat `.env.example`. Yang wajib di-set sebelum run:
 Generate fresh encryption key:
 
 ```bash
+# macOS / Linux:
 openssl rand -base64 32
+# Windows PowerShell:
+[Convert]::ToBase64String((New-Object byte[] 32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
 ## Useful scripts
