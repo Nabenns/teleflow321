@@ -1503,9 +1503,20 @@ export const TENANT_TABLES = [
 ] as const;
 ```
 
-- [ ] **Step 2: Create RLS migration SQL**
+- [ ] **Step 2: Create RLS migration SQL via `drizzle-kit generate --custom`**
 
-Create `packages/db/migrations/0002_rls_policies.sql`:
+drizzle-kit's `--custom` flag creates a numbered, empty SQL file and registers it in `meta/_journal.json` automatically. This is the canonical way to add a manual SQL migration; we then write the policy SQL into the generated file.
+
+Run:
+
+```
+$env:DATABASE_URL = "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram"
+pnpm --filter @lapakgram/db exec drizzle-kit generate --custom --name rls_policies
+```
+
+Expected: drizzle-kit creates `packages/db/migrations/0002_rls_policies.sql` (empty, just a header comment) and adds an entry to `meta/_journal.json` with the right `idx`, `tag`, and `when` fields.
+
+Then replace the file's contents with:
 
 ```sql
 -- Enable RLS and define tenant_isolation policy on every tenant-scoped table.
@@ -1553,26 +1564,9 @@ BEGIN
 END $$;
 ```
 
-- [ ] **Step 3: Register manual migration in drizzle journal**
+- [ ] **Step 3: Apply RLS migration**
 
-Drizzle-kit hanya track migrations yang di-generate. Untuk manual SQL, kita pake `drizzle-orm/migrator` yang baca semua `*.sql` di folder `migrations/`. Tapi journal-nya perlu di-update. Edit `packages/db/migrations/meta/_journal.json` (atau yang ada — buka file dan tambahkan entry):
-
-Run: `Get-Content packages/db/migrations/meta/_journal.json`
-
-Lihat bentuk existing entries (akan ada array dengan `idx`, `tag`, `when`, dll). Tambahkan entry baru di akhir array dengan `idx` berikutnya, `tag: "0002_rls_policies"`, `breakpoints: true`, `when: <unix-millis>`, `version: "7"` (sama dengan entries lain).
-
-Contoh (sesuaikan idx/version dengan existing):
-```json
-{
-  "idx": 2,
-  "version": "7",
-  "when": 1747000000000,
-  "tag": "0002_rls_policies",
-  "breakpoints": true
-}
-```
-
-- [ ] **Step 4: Apply RLS migration**
+(The journal entry was created automatically by `--custom`, so no manual JSON editing is needed.)
 
 Run: `pnpm db:migrate`
 
@@ -1588,7 +1582,7 @@ docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "SELECT tablena
 ```
 Expected: 14 rows (1 policy per tenant table).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add packages/db/src/rls.ts packages/db/migrations/0002_rls_policies.sql packages/db/migrations/meta/_journal.json
