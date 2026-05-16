@@ -13,6 +13,27 @@ import {
 } from "drizzle-orm/pg-core";
 import { merchants, users } from "./platform.js";
 
+/**
+ * FK ON DELETE policy for tenant tables:
+ *
+ * - Operational/catalog data CASCADES from merchants:
+ *     customers, product_categories, products, product_stocks,
+ *     product_files, vouchers
+ *   When a merchant is deleted, these rows are removed automatically.
+ *
+ * - Financial/audit data RESTRICTS:
+ *     orders, order_items, balance_topups, balance_transactions,
+ *     complaints, merchant_payouts, merchant_balances, audit_logs
+ *   These rows hold immutable evidence of money flow, disputes, and
+ *   actor history. They must be archived explicitly before a merchant
+ *   can be removed. Customer-side FKs in financial tables also restrict
+ *   so that a customer DELETE cannot wipe their order/ledger trail.
+ *
+ * Rule of thumb: if a row's existence is part of an audit, accounting,
+ * or dispute record, prefer RESTRICT. Never relax this without owner
+ * sign-off.
+ */
+
 // ============================================================
 // customers
 // ============================================================
@@ -27,6 +48,7 @@ export const customers = pgTable(
     telegramUsername: text("telegram_username"),
     fullName: text("full_name"),
     phone: text("phone"),
+    // reserved for Phase 2 (reseller_tiers table not yet defined; no FK).
     resellerTierId: uuid("reseller_tier_id"),
     balanceIdr: bigint("balance_idr", { mode: "number" }).notNull().default(0),
     totalSpentIdr: bigint("total_spent_idr", { mode: "number" }).notNull().default(0),
@@ -118,6 +140,8 @@ export const productStocks = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
     payload: jsonb("payload").notNull(),
     status: text("status").notNull().default("available"),
+    // soft FK to order_items; a hard FK would create a cycle
+    // (product_stocks -> order_items -> products -> product_stocks).
     soldToOrderItemId: uuid("sold_to_order_item_id"),
     importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
     soldAt: timestamp("sold_at", { withTimezone: true }),
@@ -321,6 +345,7 @@ export const complaints = pgTable(
     reason: text("reason").notNull(),
     status: text("status").notNull().default("open"),
     resolution: text("resolution"),
+    // soft FK to product_stocks; same cycle concern as above.
     replacementStockId: uuid("replacement_stock_id"),
     handledBy: uuid("handled_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
