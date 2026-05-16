@@ -119,6 +119,10 @@ build
 .next
 .turbo
 out
+*.tsbuildinfo
+
+# Next.js auto-generated type declarations (regenerated on every build)
+apps/web/next-env.d.ts
 
 # Test
 coverage
@@ -491,9 +495,8 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    typedRoutes: true,
-  },
+  // typedRoutes graduated out of experimental in Next 15.x; use top-level.
+  typedRoutes: true,
 };
 
 export default config;
