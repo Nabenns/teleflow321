@@ -6,3 +6,4 @@ build
 coverage
 pnpm-lock.yaml
 packages/db/migrations/**/*.sql
+packages/db/migrations/meta/**
