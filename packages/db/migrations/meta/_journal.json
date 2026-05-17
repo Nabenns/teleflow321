@@ -22,6 +22,13 @@
       "when": 1778949256000,
       "tag": "0002_rls_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778952325365,
+      "tag": "0003_rls_nullif_normalize",
+      "breakpoints": true
     }
   ]
 }
