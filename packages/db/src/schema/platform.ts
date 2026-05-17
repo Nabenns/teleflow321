@@ -176,6 +176,56 @@ export const platformInvoices = pgTable(
 );
 
 // ============================================================
+// email_verifications
+// ============================================================
+export const emailVerifications = pgTable(
+  "email_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("email_verifications_user_idx").on(t.userId),
+    tokenHashIdx: uniqueIndex("email_verifications_token_hash_idx").on(t.tokenHash),
+  }),
+);
+
+// ============================================================
+// merchant_invites
+// ============================================================
+export const merchantInvites = pgTable(
+  "merchant_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id, { onDelete: "cascade" }),
+    email: text("email"),
+    telegramId: bigint("telegram_id", { mode: "bigint" }),
+    role: text("role").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    merchantIdx: index("merchant_invites_merchant_idx").on(t.merchantId),
+    tokenHashIdx: uniqueIndex("merchant_invites_token_hash_idx").on(t.tokenHash),
+    emailIdx: index("merchant_invites_email_idx").on(t.email),
+  }),
+);
+
+// ============================================================
 // relations
 // ============================================================
 export const usersRelations = relations(users, ({ many }) => ({
