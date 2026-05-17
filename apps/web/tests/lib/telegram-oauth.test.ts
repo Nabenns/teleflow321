@@ -75,4 +75,45 @@ describe("verifyTelegramAuth", () => {
       expect(result.user.username).toBe("bobby");
     }
   });
+
+  it("rejects empty bot token", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = { id: 1, first_name: "A", auth_date: now };
+    const hash = signAuth(payload);
+    const result = verifyTelegramAuth({ ...payload, hash }, "");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/empty bot token/i);
+  });
+
+  it("rejects payload missing auth_date", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = { id: 1, first_name: "A", auth_date: now };
+    const hash = signAuth(payload);
+    const tampered = { id: 1, first_name: "A", hash } as unknown as Parameters<
+      typeof verifyTelegramAuth
+    >[0];
+    const result = verifyTelegramAuth(tampered, BOT_TOKEN);
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects hash with wrong length", () => {
+    const payload = {
+      id: 1,
+      first_name: "A",
+      auth_date: Math.floor(Date.now() / 1000),
+      hash: "abc",
+    };
+    const result = verifyTelegramAuth(payload, BOT_TOKEN);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/malformed/i);
+  });
+
+  it("rejects auth_date more than 60s in the future", () => {
+    const future = Math.floor(Date.now() / 1000) + 120;
+    const payload = { id: 1, first_name: "A", auth_date: future };
+    const hash = signAuth(payload);
+    const result = verifyTelegramAuth({ ...payload, hash }, BOT_TOKEN);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/future/i);
+  });
 });

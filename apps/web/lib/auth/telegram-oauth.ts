@@ -24,15 +24,35 @@ export type VerifyResult =
   | { ok: false; reason: string };
 
 const MAX_AGE_SECONDS = 24 * 60 * 60;
+const HEX_64_REGEX = /^[0-9a-f]{64}$/i;
 
+/**
+ * Verify a Telegram Login Widget payload.
+ *
+ * Per https://core.telegram.org/widgets/login#checking-authorization, the
+ * widget posts a payload signed with HMAC-SHA-256. The HMAC key is
+ * SHA256(bot_token) — note: NOT HMAC(bot_token, ...). The data-check string
+ * is built from all payload fields except `hash`, sorted by key, joined as
+ * `key=value` lines with `\n` separators.
+ *
+ * Returns ok=true with parsed user fields, or ok=false with a reason. Reasons
+ * are stable strings and may be matched in tests.
+ *
+ * Note: a captured valid payload is replayable within the freshness window
+ * (24h). Login flows tolerate this because the attacker still needs a path
+ * to the user's session/cookies.
+ */
 export function verifyTelegramAuth(
   payload: TelegramAuthPayload,
   botToken: string,
 ): VerifyResult {
+  if (!botToken) {
+    return { ok: false, reason: "empty bot token" };
+  }
   if (!payload || typeof payload !== "object") {
     return { ok: false, reason: "missing payload" };
   }
-  if (typeof payload.hash !== "string" || payload.hash.length !== 64) {
+  if (typeof payload.hash !== "string" || !HEX_64_REGEX.test(payload.hash)) {
     return { ok: false, reason: "missing or malformed hash" };
   }
 
