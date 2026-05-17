@@ -1,26 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { can, type Permission, type Role } from "../../lib/permissions.js";
-
-const ALL_ROLES: Role[] = ["owner", "admin", "finance", "support"];
+import { can, PERMISSIONS, permsForRole, ROLES } from "../../lib/permissions.js";
 
 describe("permissions matrix", () => {
   it("owner can do everything", () => {
-    const allPerms: Permission[] = [
-      "merchant:delete",
-      "merchant:billing:read",
-      "merchant:billing:write",
-      "members:invite",
-      "members:remove",
-      "members:change-role",
-      "products:read",
-      "products:write",
-      "orders:read",
-      "orders:refund",
-      "balance:read",
-      "balance:withdraw",
-      "complaints:handle",
-    ];
-    for (const p of allPerms) expect(can("owner", p)).toBe(true);
+    for (const p of PERMISSIONS) expect(can("owner", p)).toBe(true);
   });
 
   it("admin cannot delete merchant or change billing", () => {
@@ -55,9 +38,15 @@ describe("permissions matrix", () => {
   });
 
   it("every role rejects unknown permission", () => {
-    for (const role of ALL_ROLES) {
-      // @ts-expect-error
+    for (const role of ROLES) {
+      // @ts-expect-error testing runtime guard
       expect(can(role, "fake:perm")).toBe(false);
     }
+  });
+
+  it("permsForRole returns all 13 for owner and [] for unknown", () => {
+    expect(permsForRole("owner")).toHaveLength(PERMISSIONS.length);
+    // @ts-expect-error testing runtime guard
+    expect(permsForRole("hacker")).toEqual([]);
   });
 });
