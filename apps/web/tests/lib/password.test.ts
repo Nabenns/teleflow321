@@ -6,7 +6,9 @@ describe("password", () => {
     const plain = "correct horse battery staple";
     const hash = await hashPassword(plain);
     expect(hash).not.toBe(plain);
-    expect(hash.length).toBeGreaterThan(50);
+    // bcrypt hashes are exactly 60 chars and follow the $2x$<cost>$ prefix.
+    expect(hash).toMatch(/^\$2[aby]\$\d{2}\$/);
+    expect(hash).toHaveLength(60);
     expect(await verifyPassword(plain, hash)).toBe(true);
   });
 
