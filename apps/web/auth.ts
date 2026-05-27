@@ -80,32 +80,34 @@ export const {
         );
         if (!result.ok) return null;
         const tgUser = result.user;
-        // Find or create user by telegram_id.
-        const [existing] = await db
-          .select()
-          .from(schema.users)
-          .where(eq(schema.users.telegramId, tgUser.id))
-          .limit(1);
-        let userId: string;
-        if (existing) {
-          userId = existing.id;
-        } else {
-          const [created] = await db
-            .insert(schema.users)
-            .values({
-              telegramId: tgUser.id,
+        const fullName =
+          [tgUser.firstName, tgUser.lastName].filter(Boolean).join(" ") || null;
+        // Atomic upsert by telegram_id. Two concurrent sign-ins with the
+        // same Telegram ID would otherwise race the find-then-insert pattern
+        // and crash on the unique violation. ON CONFLICT DO UPDATE refreshes
+        // telegram_username/full_name and returns the row (existing or new)
+        // in a single round-trip.
+        const [upserted] = await db
+          .insert(schema.users)
+          .values({
+            telegramId: tgUser.id,
+            telegramUsername: tgUser.username ?? null,
+            fullName,
+            emailVerifiedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: schema.users.telegramId,
+            set: {
               telegramUsername: tgUser.username ?? null,
-              fullName: [tgUser.firstName, tgUser.lastName].filter(Boolean).join(" ") || null,
-              emailVerifiedAt: new Date(), // Telegram identity counts as verified
-            })
-            .returning();
-          if (!created) return null;
-          userId = created.id;
-        }
+              fullName,
+            },
+          })
+          .returning();
+        if (!upserted) return null;
         return {
-          id: userId,
-          email: existing?.email ?? null,
-          name: [tgUser.firstName, tgUser.lastName].filter(Boolean).join(" ") || undefined,
+          id: upserted.id,
+          email: upserted.email ?? null,
+          name: fullName ?? undefined,
           telegramId: tgUser.id.toString(),
         };
       },
