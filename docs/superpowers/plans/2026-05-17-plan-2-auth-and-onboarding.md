@@ -1022,12 +1022,46 @@ export { GET, POST } from "@/auth";
 
 (NextAuth v5 exports the route handlers from the same module that does config; this file just re-exports them at the API path.)
 
-- [ ] **Step 6: Verify typecheck**
+- [ ] **Step 6: Configure Next.js to bundle the workspace package**
+
+Modify `apps/web/next.config.ts` to add `transpilePackages` and a webpack `extensionAlias`. The full file becomes:
+
+```ts
+import type { NextConfig } from "next";
+
+const config: NextConfig = {
+  reactStrictMode: true,
+  // typedRoutes graduated out of experimental in Next 15.x; use top-level.
+  typedRoutes: true,
+  // Workspace package (TS source). Next must transpile + map NodeNext .js
+  // re-export specifiers back to .ts source.
+  transpilePackages: ["@lapakgram/db"],
+  webpack(config) {
+    // NodeNext-compliant TS source uses `.js` extensions in relative imports
+    // (e.g., `import x from "./foo.js"`). tsc resolves these to `.ts`/`.tsx`
+    // source via the resolver. Webpack does not by default. extensionAlias
+    // tells webpack to try `.ts` then `.tsx` then `.js` whenever a request
+    // ends in `.js`. Required for `apps/web` to import from `packages/db`,
+    // and for relative `.js` imports inside `apps/web` itself.
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js"],
+      ".jsx": [".tsx", ".jsx"],
+    };
+    return config;
+  },
+};
+
+export default config;
+```
+
+Without these two settings, the `import { ... } from "@lapakgram/db"` in `auth.ts` and the relative `./lib/auth/password.js` imports throw "Module not found" at runtime even though `tsc` is happy. The `extensionAlias` is the standard Next.js fix for NodeNext-style projects.
+
+- [ ] **Step 7: Verify typecheck**
 
 Run: `pnpm --filter @lapakgram/web typecheck`
 Expected: clean.
 
-- [ ] **Step 7: Smoke-test the auth route**
+- [ ] **Step 8: Smoke-test the auth route**
 
 Start the dev server: `pnpm --filter @lapakgram/web dev`
 
@@ -1044,10 +1078,12 @@ Expected: 200, returns JSON listing `credentials` and `telegram` providers.
 
 Stop the dev server.
 
-- [ ] **Step 8: Commit**
+If `pnpm --filter @lapakgram/web dev` boots but the curl probes return 500 with "Module not found" in the server log, double-check that `transpilePackages` and `extensionAlias` are present in `next.config.ts` (Step 6). Also check `.env`: `NEXTAUTH_SECRET` must be at least 32 bytes for NextAuth v5 (`dev_nextauth_secret_change_me_now_32_bytes` is the local fallback if you haven't generated one).
+
+- [ ] **Step 9: Commit**
 
 ```
-git add apps/web/auth.config.ts apps/web/auth.ts apps/web/app/api/auth .env.example apps/web/package.json pnpm-lock.yaml
+git add apps/web/auth.config.ts apps/web/auth.ts apps/web/app/api/auth apps/web/next.config.ts apps/web/package.json .env.example pnpm-lock.yaml
 git commit -m "feat(web): wire NextAuth v5 with email and Telegram providers"
 ```
 
