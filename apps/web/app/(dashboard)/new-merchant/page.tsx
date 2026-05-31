@@ -2,12 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { createMerchant } from "@/lib/server-actions/merchant";
 
 export default function NewMerchantPage() {
   const router = useRouter();
-  const { data } = useSession();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -19,11 +17,9 @@ export default function NewMerchantPage() {
         className="space-y-4 rounded-lg bg-white p-6 shadow"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!data?.user?.id) return;
           setSubmitting(true);
           setError(null);
           const result = await createMerchant({
-            userId: data.user.id,
             name,
             slug,
           });

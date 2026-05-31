@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { createDb, schema } from "@lapakgram/db";
+import { schema } from "@lapakgram/db";
+import { getDb } from "@/lib/db";
 import { MerchantSwitcher } from "../_components/merchant-switcher";
 import { listMerchantsForUser } from "@/lib/server-actions/merchant";
 
@@ -17,9 +18,7 @@ export default async function MerchantLayout({ children, params }: Props) {
   if (!session?.user?.id) notFound();
   const { merchantSlug } = await params;
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL required");
-  const db = createDb(databaseUrl);
+  const db = getDb();
 
   const [merchant] = await db
     .select()

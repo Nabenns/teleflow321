@@ -1,27 +1,45 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { createDb, schema, type LapakgramDb } from "@lapakgram/db";
+import { schema } from "@lapakgram/db";
+import { getDb } from "../db.js";
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{2,31}$/;
 const TRIAL_DAYS = 14;
-
-// Memoized per-URL DB pool. Server actions are invoked many times per
-// process; without this, each call would spawn a fresh postgres-js pool.
-let cached: { url: string; db: LapakgramDb } | null = null;
-function getDb(): LapakgramDb {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL required");
-  if (cached?.url === url) return cached.db;
-  cached = { url, db: createDb(url) };
-  return cached.db;
-}
 
 export type CreateResult =
   | { ok: true; merchantId: string; slug: string }
   | { ok: false; reason: string };
 
+// Server action: derives the owner from the authenticated session and
+// ignores any client-supplied user id. Next.js server actions are
+// independently-invokable POST endpoints, so trusting a caller-provided
+// userId would let anyone create merchants owned by arbitrary users.
+//
+// `auth` is imported lazily: the NextAuth module (apps/web/auth.ts) opens a
+// DB pool at module-load time and only runs inside a real request, so a
+// static import would pull request-time machinery into every importer
+// (including the vitest suite, which exercises createMerchantForUser
+// directly without a session).
 export async function createMerchant(input: {
+  name: string;
+  slug: string;
+}): Promise<CreateResult> {
+  const { auth } = await import("../../auth.js");
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: false, reason: "unauthorized" };
+  }
+  return createMerchantForUser({
+    userId: session.user.id,
+    name: input.name,
+    slug: input.slug,
+  });
+}
+
+// Inner business logic. Kept separate (and exported) so tests can exercise
+// it directly with a userId, since no NextAuth session exists under vitest.
+export async function createMerchantForUser(input: {
   userId: string;
   name: string;
   slug: string;

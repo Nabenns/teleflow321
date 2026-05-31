@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createMerchant,
+  createMerchantForUser,
   listMerchantsForUser,
 } from "../../lib/server-actions/merchant.js";
 import {
@@ -34,7 +34,7 @@ describe("merchant server actions", () => {
   it("createMerchant inserts merchant + ownership + trial subscription", async () => {
     const userId = await freshUser();
     const slug = `shop-${Date.now()}`;
-    const result = await createMerchant({ userId, name: "Shop One", slug });
+    const result = await createMerchantForUser({ userId, name: "Shop One", slug });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.merchantId).toMatch(/^[0-9a-f-]{36}$/);
@@ -45,18 +45,18 @@ describe("merchant server actions", () => {
   it("rejects duplicate slug", async () => {
     const userId = await freshUser();
     const slug = `dupslug-${Date.now()}`;
-    const a = await createMerchant({ userId, name: "A", slug });
+    const a = await createMerchantForUser({ userId, name: "A", slug });
     expect(a.ok).toBe(true);
-    const b = await createMerchant({ userId, name: "B", slug });
+    const b = await createMerchantForUser({ userId, name: "B", slug });
     expect(b.ok).toBe(false);
     if (!b.ok) expect(b.reason).toMatch(/slug/i);
   });
 
   it("rejects invalid slug (too short, special chars)", async () => {
     const userId = await freshUser();
-    const tooShort = await createMerchant({ userId, name: "X", slug: "ab" });
+    const tooShort = await createMerchantForUser({ userId, name: "X", slug: "ab" });
     expect(tooShort.ok).toBe(false);
-    const special = await createMerchant({
+    const special = await createMerchantForUser({
       userId,
       name: "X",
       slug: "Has Spaces",
@@ -67,7 +67,7 @@ describe("merchant server actions", () => {
   it("listMerchantsForUser returns owned merchants with role=owner", async () => {
     const userId = await freshUser();
     const slug = `list-${Date.now()}`;
-    await createMerchant({ userId, name: "Listed", slug });
+    await createMerchantForUser({ userId, name: "Listed", slug });
     const list = await listMerchantsForUser(userId);
     expect(list.length).toBeGreaterThan(0);
     const found = list.find((m) => m.slug === slug);
