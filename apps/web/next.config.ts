@@ -2,8 +2,12 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   reactStrictMode: true,
-  // typedRoutes graduated out of experimental in Next 15.x; use top-level.
-  typedRoutes: true,
+  // NOTE: typedRoutes was enabled speculatively in Plan 1, but Lapakgram's
+  // dashboard is built around slug-based dynamic routing (`/[merchantSlug]/...`).
+  // Nearly every internal link is computed at runtime from a merchant slug,
+  // which typedRoutes cannot verify at compile time — it would force an
+  // `as Route` cast on every dynamic href, defeating the safety it provides.
+  // Disabled to avoid pervasive friction across the dashboard.
   // Workspace package (TS source). Next must transpile + map NodeNext .js
   // re-export specifiers back to .ts source.
   transpilePackages: ["@lapakgram/db"],
