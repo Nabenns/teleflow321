@@ -18,6 +18,25 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
 
+    # Postgres for the apps/web test suite. Its shared setup helper
+    # (tests/_helpers/setup.ts) connects to localhost:5434 to bootstrap a
+    # throwaway test database. Mirrors the docker-compose dev port (5434) and
+    # credentials. The packages/db RLS suite uses testcontainers separately.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lapakgram
+          POSTGRES_PASSWORD: lapakgram_dev
+          POSTGRES_DB: lapakgram
+        ports:
+          - "5434:5432"
+        options: >-
+          --health-cmd "pg_isready -U lapakgram -d lapakgram"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -47,3 +66,7 @@ jobs:
         env:
           # testcontainers needs docker socket; ubuntu-latest provides it
           TESTCONTAINERS_RYUK_DISABLED: "true"
+          # apps/web test suite: the setup helper bootstraps a test DB on the
+          # Postgres service above. These mirror the docker-compose dev values.
+          DATABASE_URL: "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram"
+          NEXTAUTH_URL: "http://localhost:3000"
