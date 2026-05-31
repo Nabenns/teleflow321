@@ -129,4 +129,30 @@ describe("bot server actions", () => {
     expect(m?.status).toBe("pending_setup");
     expect(m?.botTokenEncrypted).toBeNull();
   });
+
+  it("returns ok:false (not a throw) when the Telegram fetch errors", async () => {
+    const { merchantId } = await freshOwnerAndMerchant();
+    process.env.MASTER_ENCRYPTION_KEY = FAKE_KEY;
+    process.env.NEXTAUTH_URL = "http://localhost:3000";
+
+    // Simulate a network exception (DNS failure, ECONNREFUSED, timeout).
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const result = await setupBotForMerchantUnchecked({
+      merchantId,
+      botToken: "1234567890:NETWORK-FAILURE-TOKEN-AT-LEAST-30-CH",
+    });
+    // Contract: a transport error must surface as ok:false, never a rejection.
+    expect(result.ok).toBe(false);
+
+    // Merchant left clean: getMe failed before any write.
+    const db = createDb(process.env.DATABASE_URL!);
+    const [m] = await db
+      .select()
+      .from(schema.merchants)
+      .where(eq(schema.merchants.id, merchantId))
+      .limit(1);
+    expect(m?.status).toBe("pending_setup");
+    expect(m?.botTokenEncrypted).toBeNull();
+  });
 });

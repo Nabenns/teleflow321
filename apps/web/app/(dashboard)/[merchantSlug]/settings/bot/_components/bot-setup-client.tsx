@@ -51,11 +51,18 @@ export function BotSetupClient({
           e.preventDefault();
           setSubmitting(true);
           setResult(null);
-          const r = await setupBotForMerchant({ merchantId, botToken: token });
-          setSubmitting(false);
-          setResult(r);
-          if (r.ok) {
-            setTimeout(() => router.push(`/${merchantSlug}`), 1500);
+          try {
+            const r = await setupBotForMerchant({ merchantId, botToken: token });
+            setResult(r);
+            if (r.ok) {
+              setTimeout(() => router.push(`/${merchantSlug}`), 1500);
+            }
+          } catch {
+            // Defensive: the action returns a typed result, but a transport
+            // error must not leave the button stuck on "Memvalidasi…".
+            setResult({ ok: false, reason: "Terjadi kesalahan. Coba lagi." });
+          } finally {
+            setSubmitting(false);
           }
         }}
       >
