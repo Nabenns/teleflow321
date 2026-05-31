@@ -44,10 +44,7 @@ export async function verifyInviteToken(
       issuer: "lapakgram",
       audience: "lapakgram-invite",
     });
-    if (
-      typeof payload.inviteId !== "string" ||
-      typeof payload.merchantId !== "string"
-    ) {
+    if (typeof payload.inviteId !== "string" || typeof payload.merchantId !== "string") {
       return { ok: false, reason: "missing claims" };
     }
     return { ok: true, payload: { inviteId: payload.inviteId, merchantId: payload.merchantId } };

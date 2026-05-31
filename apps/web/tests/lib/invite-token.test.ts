@@ -10,7 +10,10 @@ const SIGNING_SECRET = Buffer.alloc(32, 7).toString("base64");
 describe("invite token", () => {
   it("issues and verifies a token round-trip", async () => {
     const token = await createInviteToken(
-      { inviteId: "11111111-1111-1111-1111-111111111111", merchantId: "22222222-2222-2222-2222-222222222222" },
+      {
+        inviteId: "11111111-1111-1111-1111-111111111111",
+        merchantId: "22222222-2222-2222-2222-222222222222",
+      },
       SIGNING_SECRET,
       { ttlSeconds: 3600 },
     );
@@ -23,21 +26,17 @@ describe("invite token", () => {
   });
 
   it("rejects expired token", async () => {
-    const token = await createInviteToken(
-      { inviteId: "abc", merchantId: "xyz" },
-      SIGNING_SECRET,
-      { ttlSeconds: -10 },
-    );
+    const token = await createInviteToken({ inviteId: "abc", merchantId: "xyz" }, SIGNING_SECRET, {
+      ttlSeconds: -10,
+    });
     const result = await verifyInviteToken(token, SIGNING_SECRET);
     expect(result.ok).toBe(false);
   });
 
   it("rejects token signed with different secret", async () => {
-    const token = await createInviteToken(
-      { inviteId: "abc", merchantId: "xyz" },
-      SIGNING_SECRET,
-      { ttlSeconds: 3600 },
-    );
+    const token = await createInviteToken({ inviteId: "abc", merchantId: "xyz" }, SIGNING_SECRET, {
+      ttlSeconds: 3600,
+    });
     const otherSecret = Buffer.alloc(32, 9).toString("base64");
     const result = await verifyInviteToken(token, otherSecret);
     expect(result.ok).toBe(false);

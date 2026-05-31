@@ -37,10 +37,7 @@ export const {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (
-          typeof credentials?.email !== "string" ||
-          typeof credentials?.password !== "string"
-        ) {
+        if (typeof credentials?.email !== "string" || typeof credentials?.password !== "string") {
           return null;
         }
         const [user] = await db
@@ -80,8 +77,7 @@ export const {
         );
         if (!result.ok) return null;
         const tgUser = result.user;
-        const fullName =
-          [tgUser.firstName, tgUser.lastName].filter(Boolean).join(" ") || null;
+        const fullName = [tgUser.firstName, tgUser.lastName].filter(Boolean).join(" ") || null;
         // Atomic upsert by telegram_id. Two concurrent sign-ins with the
         // same Telegram ID would otherwise race the find-then-insert pattern
         // and crash on the unique violation. ON CONFLICT DO UPDATE refreshes

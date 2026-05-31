@@ -39,8 +39,12 @@ export function BotSetupClient({
         )}
         <ol className="list-decimal pl-6 text-sm text-slate-700">
           <li>Buka chat dengan @BotFather di Telegram</li>
-          <li>Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)</li>
-          <li>BotFather akan kasih token format <code>123456:ABC-...</code></li>
+          <li>
+            Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)
+          </li>
+          <li>
+            BotFather akan kasih token format <code>123456:ABC-...</code>
+          </li>
           <li>Paste token-nya di form di bawah</li>
         </ol>
       </div>
@@ -81,9 +85,7 @@ export function BotSetupClient({
           {submitting ? "Memvalidasi…" : "Connect bot"}
         </button>
         {result?.ok ? (
-          <p className="text-sm text-green-700">
-            ✓ Bot @{result.botUsername} terhubung.
-          </p>
+          <p className="text-sm text-green-700">✓ Bot @{result.botUsername} terhubung.</p>
         ) : null}
         {result && !result.ok ? (
           <p className="text-sm text-red-600">Gagal: {result.reason}</p>

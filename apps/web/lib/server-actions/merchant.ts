@@ -21,10 +21,7 @@ export type CreateResult =
 // static import would pull request-time machinery into every importer
 // (including the vitest suite, which exercises createMerchantForUser
 // directly without a session).
-export async function createMerchant(input: {
-  name: string;
-  slug: string;
-}): Promise<CreateResult> {
+export async function createMerchant(input: { name: string; slug: string }): Promise<CreateResult> {
   const { auth } = await import("../../auth.js");
   const session = await auth();
   if (!session?.user?.id) {
@@ -134,9 +131,7 @@ export interface MerchantListItem {
   status: string;
 }
 
-export async function listMerchantsForUser(
-  userId: string,
-): Promise<MerchantListItem[]> {
+export async function listMerchantsForUser(userId: string): Promise<MerchantListItem[]> {
   const db = getDb();
   const rows = await db
     .select({
@@ -147,10 +142,7 @@ export async function listMerchantsForUser(
       status: schema.merchants.status,
     })
     .from(schema.merchantMembers)
-    .innerJoin(
-      schema.merchants,
-      eq(schema.merchantMembers.merchantId, schema.merchants.id),
-    )
+    .innerJoin(schema.merchants, eq(schema.merchantMembers.merchantId, schema.merchants.id))
     .where(eq(schema.merchantMembers.userId, userId));
   return rows;
 }

@@ -69,10 +69,7 @@ test("merchant onboarding end-to-end", async ({ page, baseURL }) => {
   await page.waitForURL(`**/${slug}/settings/bot`);
 
   // 5. Setup the bot (Telegram API mocked server-side + browser-side).
-  await page.fill(
-    "input[placeholder^='123456']",
-    "1234567890:AAH-FAKE-TOKEN-AT-LEAST-30-CHARS",
-  );
+  await page.fill("input[placeholder^='123456']", "1234567890:AAH-FAKE-TOKEN-AT-LEAST-30-CHARS");
   await page.click("button[type=submit]");
   await expect(page.getByText("Bot @lapakgram_e2e_bot terhubung")).toBeVisible();
   await page.waitForURL(`**/${slug}`, { timeout: 5000 });

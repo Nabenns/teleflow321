@@ -30,10 +30,6 @@ export default async function TeamPage({ params }: Props) {
   if (!list.ok) return <p>{list.reason}</p>;
 
   return (
-    <TeamClient
-      merchantId={merchant.id}
-      members={list.members}
-      actorUserId={session.user.id}
-    />
+    <TeamClient merchantId={merchant.id} members={list.members} actorUserId={session.user.id} />
   );
 }

@@ -54,9 +54,7 @@ export function TeamClient({
                       });
                       if (r.ok) {
                         setMembers((prev) =>
-                          prev.map((p) =>
-                            p.userId === m.userId ? { ...p, role: newRole } : p,
-                          ),
+                          prev.map((p) => (p.userId === m.userId ? { ...p, role: newRole } : p)),
                         );
                       }
                     }}
@@ -81,9 +79,7 @@ export function TeamClient({
                           targetUserId: m.userId,
                         });
                         if (r.ok) {
-                          setMembers((prev) =>
-                            prev.filter((p) => p.userId !== m.userId),
-                          );
+                          setMembers((prev) => prev.filter((p) => p.userId !== m.userId));
                         }
                       }}
                     >
@@ -143,9 +139,7 @@ export function TeamClient({
             Undang
           </button>
         </form>
-        {inviteResult ? (
-          <p className="break-all text-xs text-slate-600">{inviteResult}</p>
-        ) : null}
+        {inviteResult ? <p className="break-all text-xs text-slate-600">{inviteResult}</p> : null}
       </section>
     </div>
   );

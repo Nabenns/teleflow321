@@ -26,10 +26,10 @@ export async function ensureTestDb(testDbName: string): Promise<string> {
       await admin.unsafe(`CREATE DATABASE ${testDbName}`);
       const dbUrl = ADMIN_URL.replace(/\/postgres$/, `/${testDbName}`);
       const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
-      const dir = fileURLToPath(
-        new URL("../../../../packages/db/migrations", import.meta.url),
-      );
-      const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+      const dir = fileURLToPath(new URL("../../../../packages/db/migrations", import.meta.url));
+      const files = readdirSync(dir)
+        .filter((f) => f.endsWith(".sql"))
+        .sort();
       for (const file of files) {
         const sqlText = readFileSync(join(dir, file), "utf8");
         await sql.unsafe(sqlText);

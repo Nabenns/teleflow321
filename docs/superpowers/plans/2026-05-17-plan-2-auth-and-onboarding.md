@@ -87,6 +87,7 @@ packages/db/src/schema/
 ```
 
 Two new tables:
+
 - `email_verifications`: id, user_id, token_hash, expires_at, consumed_at
 - `merchant_invites`: id, merchant_id, email, telegram_id (nullable), role, token_hash, invited_by, expires_at, accepted_at, accepted_by_user_id
 
@@ -99,6 +100,7 @@ Two new tables:
 ## Task 1: Add email_verifications and merchant_invites tables
 
 **Files:**
+
 - Modify: `packages/db/src/schema/platform.ts`
 - Create: `packages/db/migrations/0004_auth_tables.sql` (drizzle-generated)
 
@@ -166,10 +168,12 @@ Expected: No errors.
 - [ ] **Step 3: Generate migration**
 
 Run:
+
 ```
 $env:DATABASE_URL = "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram"
 pnpm db:generate
 ```
+
 Expected: New file `packages/db/migrations/0004_<name>.sql` containing CREATE TABLE for both tables and the indexes.
 
 - [ ] **Step 4: Apply migration**
@@ -177,9 +181,11 @@ Expected: New file `packages/db/migrations/0004_<name>.sql` containing CREATE TA
 Run: `pnpm db:migrate`
 
 Verify:
+
 ```
 docker exec lapakgram-postgres psql -U lapakgram -d lapakgram -c "\dt"
 ```
+
 Expected: 22 tables in public schema (was 20, +2).
 
 - [ ] **Step 5: Commit**
@@ -194,6 +200,7 @@ git commit -m "feat(db): add email_verifications and merchant_invites tables"
 ## Task 2: Bcrypt password helper (TDD)
 
 **Files:**
+
 - Create: `apps/web/lib/auth/password.ts`
 - Create: `apps/web/tests/lib/password.test.ts`
 
@@ -286,13 +293,16 @@ git commit -m "feat(web): add bcrypt password helper with TDD coverage"
 ## Task 3: Telegram OAuth HMAC verifier (TDD)
 
 **Files:**
+
 - Create: `apps/web/lib/auth/telegram-oauth.ts`
 - Create: `apps/web/tests/lib/telegram-oauth.test.ts`
 
 The Telegram Login Widget gives us a payload like:
+
 ```
 { id, first_name, last_name?, username?, photo_url?, auth_date, hash }
 ```
+
 where `hash` is HMAC-SHA-256 of all other fields (alphabetically sorted as `key=value` lines joined by `\n`), keyed by SHA-256 of the bot token.
 
 Reference: https://core.telegram.org/widgets/login#checking-authorization
@@ -411,16 +421,11 @@ export interface TelegramUser {
   photoUrl?: string;
 }
 
-export type VerifyResult =
-  | { ok: true; user: TelegramUser }
-  | { ok: false; reason: string };
+export type VerifyResult = { ok: true; user: TelegramUser } | { ok: false; reason: string };
 
 const MAX_AGE_SECONDS = 24 * 60 * 60;
 
-export function verifyTelegramAuth(
-  payload: TelegramAuthPayload,
-  botToken: string,
-): VerifyResult {
+export function verifyTelegramAuth(payload: TelegramAuthPayload, botToken: string): VerifyResult {
   if (!payload || typeof payload !== "object") {
     return { ok: false, reason: "missing payload" };
   }
@@ -446,9 +451,7 @@ export function verifyTelegramAuth(
   }
 
   const authDate =
-    typeof payload.auth_date === "number"
-      ? payload.auth_date
-      : parseInt(payload.auth_date, 10);
+    typeof payload.auth_date === "number" ? payload.auth_date : parseInt(payload.auth_date, 10);
   if (!Number.isFinite(authDate)) {
     return { ok: false, reason: "missing auth_date" };
   }
@@ -495,6 +498,7 @@ git commit -m "feat(web): add Telegram Login Widget HMAC verifier"
 ## Task 4: Invite token util (TDD)
 
 **Files:**
+
 - Create: `apps/web/lib/auth/invite-token.ts`
 - Create: `apps/web/tests/lib/invite-token.test.ts`
 
@@ -521,7 +525,10 @@ const SIGNING_SECRET = Buffer.alloc(32, 7).toString("base64");
 describe("invite token", () => {
   it("issues and verifies a token round-trip", async () => {
     const token = await createInviteToken(
-      { inviteId: "11111111-1111-1111-1111-111111111111", merchantId: "22222222-2222-2222-2222-222222222222" },
+      {
+        inviteId: "11111111-1111-1111-1111-111111111111",
+        merchantId: "22222222-2222-2222-2222-222222222222",
+      },
       SIGNING_SECRET,
       { ttlSeconds: 3600 },
     );
@@ -534,21 +541,17 @@ describe("invite token", () => {
   });
 
   it("rejects expired token", async () => {
-    const token = await createInviteToken(
-      { inviteId: "abc", merchantId: "xyz" },
-      SIGNING_SECRET,
-      { ttlSeconds: -10 },
-    );
+    const token = await createInviteToken({ inviteId: "abc", merchantId: "xyz" }, SIGNING_SECRET, {
+      ttlSeconds: -10,
+    });
     const result = await verifyInviteToken(token, SIGNING_SECRET);
     expect(result.ok).toBe(false);
   });
 
   it("rejects token signed with different secret", async () => {
-    const token = await createInviteToken(
-      { inviteId: "abc", merchantId: "xyz" },
-      SIGNING_SECRET,
-      { ttlSeconds: 3600 },
-    );
+    const token = await createInviteToken({ inviteId: "abc", merchantId: "xyz" }, SIGNING_SECRET, {
+      ttlSeconds: 3600,
+    });
     const otherSecret = Buffer.alloc(32, 9).toString("base64");
     const result = await verifyInviteToken(token, otherSecret);
     expect(result.ok).toBe(false);
@@ -624,10 +627,7 @@ export async function verifyInviteToken(
       issuer: "lapakgram",
       audience: "lapakgram-invite",
     });
-    if (
-      typeof payload.inviteId !== "string" ||
-      typeof payload.merchantId !== "string"
-    ) {
+    if (typeof payload.inviteId !== "string" || typeof payload.merchantId !== "string") {
       return { ok: false, reason: "missing claims" };
     }
     return { ok: true, payload: { inviteId: payload.inviteId, merchantId: payload.merchantId } };
@@ -658,6 +658,7 @@ git commit -m "feat(web): add invite token util (signed JWT + sha256 hash)"
 ## Task 5: RBAC permissions matrix (TDD)
 
 **Files:**
+
 - Create: `apps/web/lib/permissions.ts`
 - Create: `apps/web/tests/lib/permissions.test.ts`
 
@@ -782,11 +783,7 @@ const ROLE_PERMS: Record<Role, ReadonlySet<Permission>> = {
     "balance:read",
     "balance:withdraw",
   ]),
-  support: new Set<Permission>([
-    "products:read",
-    "orders:read",
-    "complaints:handle",
-  ]),
+  support: new Set<Permission>(["products:read", "orders:read", "complaints:handle"]),
 };
 
 export function can(role: Role, perm: Permission): boolean {
@@ -818,6 +815,7 @@ git commit -m "feat(web): add RBAC permissions matrix with role/permission types
 ## Task 6: NextAuth wiring with Credentials + Telegram providers
 
 **Files:**
+
 - Create: `apps/web/auth.config.ts`
 - Create: `apps/web/auth.ts`
 - Create: `apps/web/app/api/auth/[...nextauth]/route.ts`
@@ -937,10 +935,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (
-          typeof credentials?.email !== "string" ||
-          typeof credentials?.password !== "string"
-        ) {
+        if (typeof credentials?.email !== "string" || typeof credentials?.password !== "string") {
           return null;
         }
         const [user] = await db
@@ -1069,14 +1064,17 @@ Expected: clean.
 Start the dev server: `pnpm --filter @lapakgram/web dev`
 
 In another terminal:
+
 ```
 curl -i http://localhost:3000/api/auth/csrf
 ```
+
 Expected: 200, returns `{ "csrfToken": "..." }`.
 
 ```
 curl -i http://localhost:3000/api/auth/providers
 ```
+
 Expected: 200, returns JSON listing `credentials` and `telegram` providers.
 
 Stop the dev server.
@@ -1095,6 +1093,7 @@ git commit -m "feat(web): wire NextAuth v5 with email and Telegram providers"
 ## Task 7: Login, register, and email verification pages + server actions
 
 **Files:**
+
 - Create: `apps/web/app/(auth)/layout.tsx`
 - Create: `apps/web/app/(auth)/login/page.tsx`
 - Create: `apps/web/app/(auth)/register/page.tsx`
@@ -1138,13 +1137,11 @@ Create `apps/web/tests/server-actions/auth.test.ts`:
 
 ```ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  registerUser,
-  consumeEmailVerification,
-} from "../../lib/server-actions/auth.js";
+import { registerUser, consumeEmailVerification } from "../../lib/server-actions/auth.js";
 
 const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram_test_authactions";
+  process.env.TEST_DATABASE_URL ??
+  "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram_test_authactions";
 
 // These tests run against a dedicated test database created in the test setup.
 // We rely on a small bootstrap helper to create + migrate it. If you use
@@ -1227,7 +1224,9 @@ export async function ensureTestDb(testDbName: string): Promise<string> {
 
   // Apply repo migrations
   const dir = fileURLToPath(new URL("../../../packages/db/migrations", import.meta.url));
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
   for (const file of files) {
     const sqlText = readFileSync(join(dir, file), "utf8");
     await sql.unsafe(sqlText);
@@ -1487,9 +1486,7 @@ export default function RegisterPage() {
           Login
         </Link>
       </p>
-      <p className="text-xs text-slate-500">
-        {router.refresh ? "" : ""}
-      </p>
+      <p className="text-xs text-slate-500">{router.refresh ? "" : ""}</p>
     </form>
   );
 }
@@ -1610,6 +1607,7 @@ export default async function VerifyEmailPage({ searchParams }: Props) {
 ```
 pnpm --filter @lapakgram/web dev
 ```
+
 Open http://localhost:3000/register, fill the form, submit. The dev console should print the verification email and the page should display the dev URL link. Click it (it's same-origin) and you should see the verification success page. Then go to /login and sign in.
 
 Stop the dev server.
@@ -1626,6 +1624,7 @@ git commit -m "feat(web): add register, email verification, and login pages"
 ## Task 8: Telegram Login Widget integration
 
 **Files:**
+
 - Create: `apps/web/app/(auth)/login/_components/telegram-login.tsx`
 - Modify: `apps/web/app/(auth)/login/page.tsx`
 
@@ -1784,7 +1783,7 @@ export default function LoginPage() {
 }
 ```
 
-- [ ] **Step 3: Add NEXT_PUBLIC_ env var**
+- [ ] **Step 3: Add NEXT*PUBLIC* env var**
 
 Update `.env.example` to add (after `TELEGRAM_LOGIN_BOT_USERNAME`):
 
@@ -1809,6 +1808,7 @@ git commit -m "feat(web): add Telegram Login Widget on login page"
 ## Task 9: Merchant create flow + multi-merchant context switcher
 
 **Files:**
+
 - Create: `apps/web/lib/server-actions/merchant.ts`
 - Create: `apps/web/app/(dashboard)/layout.tsx`
 - Create: `apps/web/app/(dashboard)/new-merchant/page.tsx`
@@ -2183,13 +2183,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { MerchantListItem } from "@/lib/server-actions/merchant";
 
-export function MerchantSwitcher({
-  items,
-  active,
-}: {
-  items: MerchantListItem[];
-  active: string;
-}) {
+export function MerchantSwitcher({ items, active }: { items: MerchantListItem[]; active: string }) {
   const [open, setOpen] = useState(false);
   if (items.length <= 1) return null;
   return (
@@ -2232,6 +2226,7 @@ export function MerchantSwitcher({
 ```
 pnpm --filter @lapakgram/web dev
 ```
+
 After login, you should be redirected to `/new-merchant`. Create a merchant; it should redirect to `/<slug>/settings/bot` (page exists in next task). For now /new-merchant + the dashboard layout should render correctly.
 
 Stop the dev server.
@@ -2248,12 +2243,14 @@ git commit -m "feat(web): add merchant create flow, dashboard layout, and mercha
 ## Task 10: Bot wizard — validate token, encrypt, set webhook
 
 **Files:**
+
 - Create: `apps/web/lib/telegram/client.ts`
 - Create: `apps/web/lib/server-actions/bot.ts`
 - Create: `apps/web/app/(dashboard)/[merchantSlug]/settings/bot/page.tsx`
 - Create: `apps/web/tests/server-actions/bot.test.ts`
 
 The bot wizard:
+
 1. Shows instructions for creating a bot at @BotFather
 2. Merchant pastes the bot token
 3. Server calls Telegram `getMe` to validate, encrypts the token using `MASTER_ENCRYPTION_KEY`, stores it
@@ -2331,7 +2328,11 @@ async function freshOwnerAndMerchant() {
   });
   if (!reg.ok) throw new Error(reg.reason);
   await consumeEmailVerification(reg.devVerifyUrl.match(/token=([^&]+)/)![1]!);
-  const m = await createMerchant({ userId: reg.userId, name: "Bot Test", slug: `bot-${Date.now()}` });
+  const m = await createMerchant({
+    userId: reg.userId,
+    name: "Bot Test",
+    slug: `bot-${Date.now()}`,
+  });
   if (!m.ok) throw new Error(m.reason);
   return { userId: reg.userId, merchantId: m.merchantId };
 }
@@ -2353,7 +2354,12 @@ describe("bot server actions", () => {
         return new Response(
           JSON.stringify({
             ok: true,
-            result: { id: 1234567890, is_bot: true, username: "lapakgram_test_bot", first_name: "Test" },
+            result: {
+              id: 1234567890,
+              is_bot: true,
+              username: "lapakgram_test_bot",
+              first_name: "Test",
+            },
           }),
           { status: 200 },
         );
@@ -2392,9 +2398,7 @@ describe("bot server actions", () => {
     expect(decryptSecret(blob, key)).toBe("1234567890:AAH-FAKE-TOKEN");
 
     // Verify setWebhook was called with our URL pattern
-    const setWebhookCall = fetchMock.mock.calls.find(([u]) =>
-      String(u).includes("/setWebhook"),
-    );
+    const setWebhookCall = fetchMock.mock.calls.find(([u]) => String(u).includes("/setWebhook"));
     expect(setWebhookCall).toBeTruthy();
   });
 
@@ -2421,11 +2425,16 @@ describe("bot server actions", () => {
       const url = String(input);
       if (url.includes("/getMe")) {
         return new Response(
-          JSON.stringify({ ok: true, result: { id: 1, is_bot: true, username: "u", first_name: "f" } }),
+          JSON.stringify({
+            ok: true,
+            result: { id: 1, is_bot: true, username: "u", first_name: "f" },
+          }),
           { status: 200 },
         );
       }
-      return new Response(JSON.stringify({ ok: false, description: "Bad webhook" }), { status: 200 });
+      return new Response(JSON.stringify({ ok: false, description: "Bad webhook" }), {
+        status: 200,
+      });
     });
 
     const result = await setupBotForMerchant({ merchantId, botToken: "12:T" });
@@ -2559,27 +2568,33 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setupBotForMerchant } from "@/lib/server-actions/bot";
 
-export default function BotSetupPage({
-  params,
-}: {
-  params: Promise<{ merchantSlug: string }>;
-}) {
+export default function BotSetupPage({ params }: { params: Promise<{ merchantSlug: string }> }) {
   const router = useRouter();
   const [token, setToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ ok: true; botUsername: string } | { ok: false; reason: string } | null>(null);
+  const [result, setResult] = useState<
+    { ok: true; botUsername: string } | { ok: false; reason: string } | null
+  >(null);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Setup bot Telegram</h1>
         <p className="text-slate-600">
-          Buat bot baru di <a className="underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> lewat Telegram, lalu paste token-nya di sini.
+          Buat bot baru di{" "}
+          <a className="underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">
+            @BotFather
+          </a>{" "}
+          lewat Telegram, lalu paste token-nya di sini.
         </p>
         <ol className="list-decimal pl-6 text-sm text-slate-700">
           <li>Buka chat dengan @BotFather di Telegram</li>
-          <li>Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)</li>
-          <li>BotFather akan kasih token format <code>123456:ABC-...</code></li>
+          <li>
+            Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)
+          </li>
+          <li>
+            BotFather akan kasih token format <code>123456:ABC-...</code>
+          </li>
           <li>Paste token-nya di form di bawah</li>
         </ol>
       </div>
@@ -2590,7 +2605,8 @@ export default function BotSetupPage({
           e.preventDefault();
           setSubmitting(true);
           setResult(null);
-          const merchantId = (e.currentTarget.elements.namedItem("merchantId") as HTMLInputElement).value;
+          const merchantId = (e.currentTarget.elements.namedItem("merchantId") as HTMLInputElement)
+            .value;
           const r = await setupBotForMerchant({ merchantId, botToken: token });
           setSubmitting(false);
           setResult(r);
@@ -2650,13 +2666,23 @@ export default async function BotSetupPage({ params }: Props) {
   const { merchantSlug } = await params;
   const db = createDb(process.env.DATABASE_URL!);
   const [merchant] = await db
-    .select({ id: schema.merchants.id, status: schema.merchants.status, botUsername: schema.merchants.botUsername })
+    .select({
+      id: schema.merchants.id,
+      status: schema.merchants.status,
+      botUsername: schema.merchants.botUsername,
+    })
     .from(schema.merchants)
     .where(eq(schema.merchants.slug, merchantSlug))
     .limit(1);
   if (!merchant) notFound();
 
-  return <BotSetupClient merchantId={merchant.id} merchantSlug={merchantSlug} currentBotUsername={merchant.botUsername} />;
+  return (
+    <BotSetupClient
+      merchantId={merchant.id}
+      merchantSlug={merchantSlug}
+      currentBotUsername={merchant.botUsername}
+    />
+  );
 }
 ```
 
@@ -2704,8 +2730,12 @@ export function BotSetupClient({
         )}
         <ol className="list-decimal pl-6 text-sm text-slate-700">
           <li>Buka chat dengan @BotFather di Telegram</li>
-          <li>Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)</li>
-          <li>BotFather akan kasih token format <code>123456:ABC-...</code></li>
+          <li>
+            Kirim <code>/newbot</code> dan ikuti instruksi (nama + username)
+          </li>
+          <li>
+            BotFather akan kasih token format <code>123456:ABC-...</code>
+          </li>
           <li>Paste token-nya di form di bawah</li>
         </ol>
       </div>
@@ -2739,9 +2769,7 @@ export function BotSetupClient({
           {submitting ? "Memvalidasi…" : "Connect bot"}
         </button>
         {result?.ok ? (
-          <p className="text-sm text-green-700">
-            ✓ Bot @{result.botUsername} terhubung.
-          </p>
+          <p className="text-sm text-green-700">✓ Bot @{result.botUsername} terhubung.</p>
         ) : null}
         {result && !result.ok ? (
           <p className="text-sm text-red-600">Gagal: {result.reason}</p>
@@ -2764,6 +2792,7 @@ git commit -m "feat(web): add bot setup wizard (validate token, encrypt, set web
 ## Task 11: Bot webhook stub route
 
 **Files:**
+
 - Create: `apps/web/app/api/webhooks/telegram/[secret]/route.ts`
 
 This stub validates the request, looks up the merchant, decrypts the bot token, and replies to `/start` with a stub welcome message. Plan 3 will replace this whole route with routing to the Go bot service.
@@ -2841,6 +2870,7 @@ export async function POST(
 - [ ] **Step 2: Manual smoke test (requires real bot)**
 
 If you have a real bot token configured via the wizard:
+
 1. Open the bot in Telegram, send `/start`
 2. The bot should reply with the stub welcome message
 
@@ -2858,6 +2888,7 @@ git commit -m "feat(web): add Telegram webhook stub route (Plan 3 replaces with 
 ## Task 12: Multi-admin invite flow + RBAC middleware
 
 **Files:**
+
 - Create: `apps/web/lib/server-actions/members.ts`
 - Create: `apps/web/middleware.ts`
 - Create: `apps/web/app/(auth)/invite/[token]/page.tsx`
@@ -3018,11 +3049,7 @@ import { and, count, eq } from "drizzle-orm";
 import { createDb, schema } from "@lapakgram/db";
 import { sendEmail } from "../email/send.js";
 import { can, type Permission, type Role } from "../permissions.js";
-import {
-  createInviteToken,
-  hashInviteToken,
-  verifyInviteToken,
-} from "../auth/invite-token.js";
+import { createInviteToken, hashInviteToken, verifyInviteToken } from "../auth/invite-token.js";
 
 const INVITE_TTL_HOURS = 168; // 7 days
 
@@ -3038,10 +3065,7 @@ function getInviteSecret() {
   return s;
 }
 
-async function getMembership(
-  userId: string,
-  merchantId: string,
-): Promise<{ role: Role } | null> {
+async function getMembership(userId: string, merchantId: string): Promise<{ role: Role } | null> {
   const db = getDb();
   const [m] = await db
     .select({ role: schema.merchantMembers.role })
@@ -3186,11 +3210,7 @@ export async function changeMemberRole(input: {
   if (input.newRole === "owner") {
     return { ok: false, reason: "use ownership transfer flow for owner role" };
   }
-  const perm = await requirePermission(
-    input.actorUserId,
-    input.merchantId,
-    "members:change-role",
-  );
+  const perm = await requirePermission(input.actorUserId, input.merchantId, "members:change-role");
   if (!perm.ok) return perm;
 
   const db = getDb();
@@ -3213,11 +3233,7 @@ export async function removeMember(input: {
   merchantId: string;
   targetUserId: string;
 }): Promise<RemoveResult> {
-  const perm = await requirePermission(
-    input.actorUserId,
-    input.merchantId,
-    "members:remove",
-  );
+  const perm = await requirePermission(input.actorUserId, input.merchantId, "members:remove");
   if (!perm.ok) return perm;
 
   const db = getDb();
@@ -3258,9 +3274,7 @@ export interface MemberRow {
   acceptedAt: Date | null;
 }
 
-export type ListMembersResult =
-  | { ok: true; members: MemberRow[] }
-  | { ok: false; reason: string };
+export type ListMembersResult = { ok: true; members: MemberRow[] } | { ok: false; reason: string };
 
 export async function listMembers(input: {
   actorUserId: string;
@@ -3350,7 +3364,9 @@ export default async function TeamPage({ params }: Props) {
   const list = await listMembers({ actorUserId: session.user.id, merchantId: merchant.id });
   if (!list.ok) return <p>{list.reason}</p>;
 
-  return <TeamClient merchantId={merchant.id} members={list.members} actorUserId={session.user.id} />;
+  return (
+    <TeamClient merchantId={merchant.id} members={list.members} actorUserId={session.user.id} />
+  );
 }
 ```
 
@@ -3501,9 +3517,7 @@ export function TeamClient({
             Undang
           </button>
         </form>
-        {inviteResult ? (
-          <p className="break-all text-xs text-slate-600">{inviteResult}</p>
-        ) : null}
+        {inviteResult ? <p className="break-all text-xs text-slate-600">{inviteResult}</p> : null}
       </section>
     </div>
   );
@@ -3569,6 +3583,7 @@ git commit -m "feat(web): add multi-admin invite flow and team settings page"
 ## Task 13: Platform admin merchants list
 
 **Files:**
+
 - Create: `apps/web/app/(admin)/admin/layout.tsx`
 - Create: `apps/web/app/(admin)/admin/merchants/page.tsx`
 
@@ -3697,6 +3712,7 @@ git commit -m "feat(web): add platform admin merchants list page"
 ## Task 14: End-to-end Playwright smoke test
 
 **Files:**
+
 - Create: `apps/web/playwright.config.ts`
 - Create: `apps/web/e2e/onboarding.spec.ts`
 - Modify: `apps/web/package.json` (add `e2e` script)
@@ -3732,8 +3748,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       DATABASE_URL: "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram_e2e",
-      MASTER_ENCRYPTION_KEY: process.env.MASTER_ENCRYPTION_KEY ?? "ZGV2X29ubHlfMzJfYnl0ZV9rZXlfZG9fbm90X3VzZSE=",
-      INVITE_SIGNING_SECRET: process.env.INVITE_SIGNING_SECRET ?? "ZGV2X29ubHlfaW52aXRlX3NpZ25pbmdfa2V5XzMyXyE=",
+      MASTER_ENCRYPTION_KEY:
+        process.env.MASTER_ENCRYPTION_KEY ?? "ZGV2X29ubHlfMzJfYnl0ZV9rZXlfZG9fbm90X3VzZSE=",
+      INVITE_SIGNING_SECRET:
+        process.env.INVITE_SIGNING_SECRET ?? "ZGV2X29ubHlfaW52aXRlX3NpZ25pbmdfa2V5XzMyXyE=",
       NEXTAUTH_SECRET: "e2e_test_secret_minimum_32_bytes_long",
       NEXTAUTH_URL: "http://localhost:3000",
     },
@@ -3890,11 +3908,13 @@ test("merchant onboarding end-to-end", async ({ page, baseURL }) => {
 - [ ] **Step 6: Run the E2E**
 
 Make sure docker stack is up. Bootstrap E2E DB:
+
 ```
 pnpm --filter @lapakgram/web e2e:setup
 ```
 
 Then run the test (Playwright auto-starts the dev server):
+
 ```
 pnpm --filter @lapakgram/web e2e
 ```
@@ -3915,6 +3935,7 @@ git commit -m "test(web): add Playwright E2E for full onboarding flow"
 **Spec coverage:**
 
 The Plan 1 design spec (§5.1 §5.5) covered RLS and encryption. Plan 2 covers spec sections:
+
 - §6 Data Model — adds email_verifications and merchant_invites tables (Task 1)
 - §7.1-7.3 Auth Strategy — NextAuth Credentials + Telegram providers (Tasks 2, 3, 6, 7, 8)
 - §7.4 RBAC — permissions matrix + middleware (Tasks 5, 12)
@@ -3924,6 +3945,7 @@ The Plan 1 design spec (§5.1 §5.5) covered RLS and encryption. Plan 2 covers s
 - Verification — encryption test, RLS test, isolation test, server action tests, E2E (Tasks 2-12)
 
 Items deferred to Plan 3+:
+
 - Mini App routes (Plan 3)
 - Bot service Go (Plan 3)
 - Catalog (Plan 3)
@@ -3935,18 +3957,21 @@ No spec items from Plan 2 scope are missed.
 **Placeholder scan:** All steps have full code or commands. No "TBD"/"TODO" placeholders.
 
 **Type consistency:**
+
 - `Role` and `Permission` types defined in Task 5 are used consistently in Tasks 6 (NextAuth session callback), 12 (server actions, team UI)
 - `setupBotForMerchant` returns `{ ok: true, botUsername, botId }` — the page in Task 10 step 6 reads `result.botUsername`
 - `merchant_invites.tokenHash` SHA-256 form is consistent between schema (Task 1), invite-token util (Task 4), and server actions (Task 12)
 - Test DB helper `ensureTestDb` in Task 7 is reused by Task 14 e2e setup
 
 **Gaps:**
+
 - Task 7 server actions test references `process.env.DATABASE_URL`, set by Task 7 step 4 setup helper. `tests/_helpers/setup.ts` runs before each test file and points DATABASE_URL at the test DB.
 - Task 12 tests reuse the same DB; we accept that the data accumulates across tests within one test file. Each test creates a fresh user/merchant so isolation is by ID, not by truncation. This keeps tests fast.
 
 **Outcome verification:**
 
 After all 14 tasks, run:
+
 ```
 pnpm install
 pnpm dev:up
@@ -3957,6 +3982,7 @@ pnpm --filter @lapakgram/web e2e
 ```
 
 Expected:
+
 - `pnpm test` runs all unit + integration tests (existing 17 + ~25 new), all green
 - `pnpm e2e` runs the full onboarding spec, green
 - Manual: `pnpm --filter @lapakgram/web dev`, register a user, verify, create merchant, setup bot with a real BotFather token, send `/start` to the bot — receive the stub welcome message

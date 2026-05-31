@@ -39,11 +39,7 @@ const ROLE_PERMS: Record<Role, ReadonlySet<Permission>> = {
     "balance:read",
     "balance:withdraw",
   ]),
-  support: new Set<Permission>([
-    "products:read",
-    "orders:read",
-    "complaints:handle",
-  ]),
+  support: new Set<Permission>(["products:read", "orders:read", "complaints:handle"]),
 };
 
 export function can(role: Role, perm: Permission): boolean {

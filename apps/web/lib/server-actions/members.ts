@@ -6,11 +6,7 @@ import { schema } from "@lapakgram/db";
 import { getDb } from "../db.js";
 import { sendEmail } from "../email/send.js";
 import { can, type Permission, type Role } from "../permissions.js";
-import {
-  createInviteToken,
-  hashInviteToken,
-  verifyInviteToken,
-} from "../auth/invite-token.js";
+import { createInviteToken, hashInviteToken, verifyInviteToken } from "../auth/invite-token.js";
 
 const INVITE_TTL_HOURS = 168; // 7 days
 
@@ -20,10 +16,7 @@ function getInviteSecret(): string {
   return s;
 }
 
-async function getMembership(
-  userId: string,
-  merchantId: string,
-): Promise<{ role: Role } | null> {
+async function getMembership(userId: string, merchantId: string): Promise<{ role: Role } | null> {
   const db = getDb();
   const [m] = await db
     .select({ role: schema.merchantMembers.role })
@@ -74,11 +67,7 @@ export async function inviteMemberAsActor(input: {
   if (input.role === "owner") {
     return { ok: false, reason: "use ownership transfer flow for owner role" };
   }
-  const perm = await requirePermission(
-    input.actorUserId,
-    input.merchantId,
-    "members:invite",
-  );
+  const perm = await requirePermission(input.actorUserId, input.merchantId, "members:invite");
   if (!perm.ok) return perm;
 
   const db = getDb();
@@ -222,10 +211,7 @@ export async function acceptInviteAsUser(input: {
         .update(schema.merchantInvites)
         .set({ acceptedAt: new Date(), acceptedByUserId: input.userId })
         .where(
-          and(
-            eq(schema.merchantInvites.id, invite.id),
-            isNull(schema.merchantInvites.acceptedAt),
-          ),
+          and(eq(schema.merchantInvites.id, invite.id), isNull(schema.merchantInvites.acceptedAt)),
         )
         .returning({ id: schema.merchantInvites.id });
       if (claimed.length === 0) {
@@ -251,9 +237,7 @@ export async function acceptInviteAsUser(input: {
 }
 
 // Thin server action: derives the accepting user from the session.
-export async function acceptInvite(input: {
-  token: string;
-}): Promise<AcceptResult> {
+export async function acceptInvite(input: { token: string }): Promise<AcceptResult> {
   const { auth } = await import("../../auth.js");
   const session = await auth();
   if (!session?.user?.id) return { ok: false, reason: "unauthorized" };
@@ -274,11 +258,7 @@ export async function changeMemberRoleAsActor(input: {
   if (input.newRole === "owner") {
     return { ok: false, reason: "use ownership transfer flow for owner role" };
   }
-  const perm = await requirePermission(
-    input.actorUserId,
-    input.merchantId,
-    "members:change-role",
-  );
+  const perm = await requirePermission(input.actorUserId, input.merchantId, "members:change-role");
   if (!perm.ok) return perm;
 
   const db = getDb();
@@ -338,11 +318,7 @@ export async function removeMemberAsActor(input: {
   merchantId: string;
   targetUserId: string;
 }): Promise<RemoveResult> {
-  const perm = await requirePermission(
-    input.actorUserId,
-    input.merchantId,
-    "members:remove",
-  );
+  const perm = await requirePermission(input.actorUserId, input.merchantId, "members:remove");
   if (!perm.ok) return perm;
 
   const db = getDb();
@@ -397,9 +373,7 @@ export interface MemberRow {
   acceptedAt: Date | null;
 }
 
-export type ListMembersResult =
-  | { ok: true; members: MemberRow[] }
-  | { ok: false; reason: string };
+export type ListMembersResult = { ok: true; members: MemberRow[] } | { ok: false; reason: string };
 
 export async function listMembersAsActor(input: {
   actorUserId: string;
@@ -435,9 +409,7 @@ export async function listMembersAsActor(input: {
 }
 
 // Thin server action.
-export async function listMembers(input: {
-  merchantId: string;
-}): Promise<ListMembersResult> {
+export async function listMembers(input: { merchantId: string }): Promise<ListMembersResult> {
   const { auth } = await import("../../auth.js");
   const session = await auth();
   if (!session?.user?.id) return { ok: false, reason: "unauthorized" };

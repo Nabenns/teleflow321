@@ -36,8 +36,7 @@ export const authConfig: NextAuthConfig = {
     },
     async session({ session, token }) {
       session.user.id = token.userId as string;
-      (session.user as { email?: string | null }).email =
-        (token.email as string | null) ?? null;
+      (session.user as { email?: string | null }).email = (token.email as string | null) ?? null;
       (session.user as { telegramId?: string | null }).telegramId =
         (token.telegramId as string | null) ?? null;
       return session;

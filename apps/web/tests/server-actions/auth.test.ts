@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  registerUser,
-  consumeEmailVerification,
-} from "../../lib/server-actions/auth.js";
+import { registerUser, consumeEmailVerification } from "../../lib/server-actions/auth.js";
 
 const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram_test_authactions";
+  process.env.TEST_DATABASE_URL ??
+  "postgres://lapakgram:lapakgram_dev@localhost:5434/lapakgram_test_authactions";
 
 // These tests run against a dedicated test database created in the test setup.
 // We rely on a small bootstrap helper to create + migrate it. If you use

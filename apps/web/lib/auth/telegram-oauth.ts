@@ -19,9 +19,7 @@ export interface TelegramUser {
   photoUrl?: string;
 }
 
-export type VerifyResult =
-  | { ok: true; user: TelegramUser }
-  | { ok: false; reason: string };
+export type VerifyResult = { ok: true; user: TelegramUser } | { ok: false; reason: string };
 
 const MAX_AGE_SECONDS = 24 * 60 * 60;
 const HEX_64_REGEX = /^[0-9a-f]{64}$/i;
@@ -42,10 +40,7 @@ const HEX_64_REGEX = /^[0-9a-f]{64}$/i;
  * (24h). Login flows tolerate this because the attacker still needs a path
  * to the user's session/cookies.
  */
-export function verifyTelegramAuth(
-  payload: TelegramAuthPayload,
-  botToken: string,
-): VerifyResult {
+export function verifyTelegramAuth(payload: TelegramAuthPayload, botToken: string): VerifyResult {
   if (!botToken) {
     return { ok: false, reason: "empty bot token" };
   }
@@ -74,9 +69,7 @@ export function verifyTelegramAuth(
   }
 
   const authDate =
-    typeof payload.auth_date === "number"
-      ? payload.auth_date
-      : parseInt(payload.auth_date, 10);
+    typeof payload.auth_date === "number" ? payload.auth_date : parseInt(payload.auth_date, 10);
   if (!Number.isFinite(authDate)) {
     return { ok: false, reason: "missing auth_date" };
   }

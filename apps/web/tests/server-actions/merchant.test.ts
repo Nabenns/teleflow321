@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createMerchantForUser,
-  listMerchantsForUser,
-} from "../../lib/server-actions/merchant.js";
-import {
-  registerUser,
-  consumeEmailVerification,
-} from "../../lib/server-actions/auth.js";
+import { createMerchantForUser, listMerchantsForUser } from "../../lib/server-actions/merchant.js";
+import { registerUser, consumeEmailVerification } from "../../lib/server-actions/auth.js";
 
 const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??

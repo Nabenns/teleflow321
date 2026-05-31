@@ -2,20 +2,10 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
-import { createDb, schema, type LapakgramDb } from "@lapakgram/db";
+import { schema } from "@lapakgram/db";
+import { getDb } from "../db.js";
 import { hashPassword } from "../auth/password.js";
 import { sendEmail } from "../email/send.js";
-
-// Memoized per-URL DB pool. Server actions are invoked many times per
-// process; without this, each call spawns a fresh postgres-js pool.
-let cached: { url: string; db: LapakgramDb } | null = null;
-function getDb(): LapakgramDb {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL required");
-  if (cached?.url === url) return cached.db;
-  cached = { url, db: createDb(url) };
-  return cached.db;
-}
 
 const VERIFY_TTL_HOURS = 24;
 const isProd = process.env.NODE_ENV === "production";

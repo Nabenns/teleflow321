@@ -7,10 +7,7 @@ import {
   listMembersAsActor,
 } from "../../lib/server-actions/members.js";
 import { createMerchantForUser } from "../../lib/server-actions/merchant.js";
-import {
-  registerUser,
-  consumeEmailVerification,
-} from "../../lib/server-actions/auth.js";
+import { registerUser, consumeEmailVerification } from "../../lib/server-actions/auth.js";
 
 const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??

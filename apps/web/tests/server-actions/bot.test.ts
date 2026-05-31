@@ -42,7 +42,12 @@ describe("bot server actions", () => {
         return new Response(
           JSON.stringify({
             ok: true,
-            result: { id: 1234567890, is_bot: true, username: "lapakgram_test_bot", first_name: "Test" },
+            result: {
+              id: 1234567890,
+              is_bot: true,
+              username: "lapakgram_test_bot",
+              first_name: "Test",
+            },
           }),
           { status: 200 },
         );
@@ -81,9 +86,7 @@ describe("bot server actions", () => {
     expect(decryptSecret(blob, key)).toBe("1234567890:AAH-FAKE-TOKEN-AT-LEAST-30-CHARS-XYZ");
 
     // Verify setWebhook was called with our URL pattern
-    const setWebhookCall = fetchMock.mock.calls.find(([u]) =>
-      String(u).includes("/setWebhook"),
-    );
+    const setWebhookCall = fetchMock.mock.calls.find(([u]) => String(u).includes("/setWebhook"));
     expect(setWebhookCall).toBeTruthy();
   });
 
@@ -110,14 +113,22 @@ describe("bot server actions", () => {
       const url = String(input);
       if (url.includes("/getMe")) {
         return new Response(
-          JSON.stringify({ ok: true, result: { id: 1, is_bot: true, username: "u", first_name: "f" } }),
+          JSON.stringify({
+            ok: true,
+            result: { id: 1, is_bot: true, username: "u", first_name: "f" },
+          }),
           { status: 200 },
         );
       }
-      return new Response(JSON.stringify({ ok: false, description: "Bad webhook" }), { status: 200 });
+      return new Response(JSON.stringify({ ok: false, description: "Bad webhook" }), {
+        status: 200,
+      });
     });
 
-    const result = await setupBotForMerchantUnchecked({ merchantId, botToken: "12:TOKEN-LONG-ENOUGH-TO-PASS-FORMAT-CHECK" });
+    const result = await setupBotForMerchantUnchecked({
+      merchantId,
+      botToken: "12:TOKEN-LONG-ENOUGH-TO-PASS-FORMAT-CHECK",
+    });
     expect(result.ok).toBe(false);
 
     const db = createDb(process.env.DATABASE_URL!);
