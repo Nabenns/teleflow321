@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { schema } from "@lapakgram/db";
 import { getDb } from "../db.js";
 import { sendEmail } from "../email/send.js";
@@ -155,6 +155,14 @@ export type AcceptResult =
 // Inner logic. Verifies the signed token, then claims the invite and creates
 // the membership in a single transaction. Coarse reasons only — never leak the
 // underlying jose/db error string to the caller.
+// Sentinel thrown inside the accept transaction to force a rollback with a
+// caller-facing reason. postgres-js rolls back when the callback throws.
+class AcceptAbort extends Error {
+  constructor(public reason: string) {
+    super(reason);
+  }
+}
+
 export async function acceptInviteAsUser(input: {
   userId: string;
   token: string;
@@ -175,20 +183,69 @@ export async function acceptInviteAsUser(input: {
     return { ok: false, reason: "invite expired" };
   }
 
-  // Add membership and mark the invite consumed atomically so a crash cannot
-  // leave a half-accepted invite.
-  await db.transaction(async (tx) => {
-    await tx.insert(schema.merchantMembers).values({
-      merchantId: invite.merchantId,
-      userId: input.userId,
-      role: invite.role,
-      acceptedAt: new Date(),
+  // Identity binding: an invite is addressed to a specific email and/or
+  // telegram id. Without this check it is a pure bearer token — anyone who
+  // obtains the link could join. Require the accepting user to match every
+  // channel the invite was addressed to.
+  const [user] = await db
+    .select({ email: schema.users.email, telegramId: schema.users.telegramId })
+    .from(schema.users)
+    .where(eq(schema.users.id, input.userId))
+    .limit(1);
+  if (!user) return { ok: false, reason: "user not found" };
+  if (invite.email) {
+    const inviteEmail = invite.email.trim().toLowerCase();
+    const userEmail = user.email?.trim().toLowerCase() ?? null;
+    if (userEmail !== inviteEmail) {
+      return { ok: false, reason: "invite addressed to a different account" };
+    }
+  }
+  if (invite.telegramId !== null && invite.telegramId !== undefined) {
+    if (user.telegramId !== invite.telegramId) {
+      return { ok: false, reason: "invite addressed to a different account" };
+    }
+  }
+
+  // Already a member? Report cleanly instead of letting the unique index throw.
+  const existingMembership = await getMembership(input.userId, invite.merchantId);
+  if (existingMembership) {
+    return { ok: false, reason: "already a member" };
+  }
+
+  // Add membership and claim the invite atomically. The claim is a conditional
+  // UPDATE guarded by `accepted_at IS NULL`; if a concurrent accept already
+  // consumed it, RETURNING yields zero rows and we roll back. This closes the
+  // TOCTOU between the read above and the write here.
+  try {
+    await db.transaction(async (tx) => {
+      const claimed = await tx
+        .update(schema.merchantInvites)
+        .set({ acceptedAt: new Date(), acceptedByUserId: input.userId })
+        .where(
+          and(
+            eq(schema.merchantInvites.id, invite.id),
+            isNull(schema.merchantInvites.acceptedAt),
+          ),
+        )
+        .returning({ id: schema.merchantInvites.id });
+      if (claimed.length === 0) {
+        throw new AcceptAbort("invite already used");
+      }
+      await tx.insert(schema.merchantMembers).values({
+        merchantId: invite.merchantId,
+        userId: input.userId,
+        role: invite.role,
+        acceptedAt: new Date(),
+      });
     });
-    await tx
-      .update(schema.merchantInvites)
-      .set({ acceptedAt: new Date(), acceptedByUserId: input.userId })
-      .where(eq(schema.merchantInvites.id, invite.id));
-  });
+  } catch (err) {
+    if (err instanceof AcceptAbort) {
+      return { ok: false, reason: err.reason };
+    }
+    // A unique-violation here means a concurrent request created the same
+    // membership; treat it as already a member rather than a 500.
+    return { ok: false, reason: "already a member" };
+  }
 
   return { ok: true, merchantId: invite.merchantId, role: invite.role as Role };
 }
@@ -225,6 +282,28 @@ export async function changeMemberRoleAsActor(input: {
   if (!perm.ok) return perm;
 
   const db = getDb();
+
+  // Demoting the sole owner to a non-owner role would leave the merchant
+  // ownerless and unmanageable — the same outcome the removal guard prevents,
+  // reachable through this path. Block it symmetrically. (newRole is already
+  // narrowed to a non-owner role by the guard at the top of this function.)
+  const target = await getMembership(input.targetUserId, input.merchantId);
+  if (!target) return { ok: false, reason: "not a member" };
+  if (target.role === "owner") {
+    const [owners] = await db
+      .select({ value: count() })
+      .from(schema.merchantMembers)
+      .where(
+        and(
+          eq(schema.merchantMembers.merchantId, input.merchantId),
+          eq(schema.merchantMembers.role, "owner"),
+        ),
+      );
+    if (!owners || owners.value <= 1) {
+      return { ok: false, reason: "cannot demote last owner" };
+    }
+  }
+
   await db
     .update(schema.merchantMembers)
     .set({ role: input.newRole })

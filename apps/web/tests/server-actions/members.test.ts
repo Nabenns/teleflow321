@@ -142,4 +142,66 @@ describe("members", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/last owner|cannot remove/i);
   });
+
+  it("cannot demote the last owner via change-role", async () => {
+    const { ownerId, merchantId } = await freshUserMerchant();
+    // The owner is the only owner; demoting to support would orphan the merchant.
+    const result = await changeMemberRoleAsActor({
+      actorUserId: ownerId,
+      merchantId,
+      targetUserId: ownerId,
+      newRole: "support",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/last owner|demote/i);
+  });
+
+  it("rejects accept when the session user does not match the invited email", async () => {
+    process.env.INVITE_SIGNING_SECRET = Buffer.alloc(32, 1).toString("base64");
+    const { ownerId, merchantId } = await freshUserMerchant();
+    const invitedEmail = `wanted+${Date.now()}@example.com`;
+    const inv = await inviteMemberAsActor({
+      actorUserId: ownerId,
+      merchantId,
+      email: invitedEmail,
+      role: "support",
+    });
+    expect(inv.ok).toBe(true);
+    if (!inv.ok) return;
+
+    // A DIFFERENT user (different email) tries to accept the bearer link.
+    const intruder = await registerUser({
+      email: `intruder+${Date.now()}@example.com`,
+      password: "password123",
+    });
+    expect(intruder.ok).toBe(true);
+    if (!intruder.ok) return;
+    await consumeEmailVerification(intruder.devVerifyUrl.match(/token=([^&]+)/)![1]!);
+
+    const accept = await acceptInviteAsUser({ userId: intruder.userId, token: inv.token });
+    expect(accept.ok).toBe(false);
+    if (!accept.ok) expect(accept.reason).toMatch(/different account/i);
+  });
+
+  it("rejects a second accept of the same invite", async () => {
+    process.env.INVITE_SIGNING_SECRET = Buffer.alloc(32, 1).toString("base64");
+    const { ownerId, merchantId } = await freshUserMerchant();
+    const inviteeEmail = `double+${Date.now()}@example.com`;
+    const inv = await inviteMemberAsActor({
+      actorUserId: ownerId,
+      merchantId,
+      email: inviteeEmail,
+      role: "support",
+    });
+    if (!inv.ok) return;
+    const reg = await registerUser({ email: inviteeEmail, password: "password123" });
+    if (!reg.ok) return;
+    await consumeEmailVerification(reg.devVerifyUrl.match(/token=([^&]+)/)![1]!);
+
+    const first = await acceptInviteAsUser({ userId: reg.userId, token: inv.token });
+    expect(first.ok).toBe(true);
+    const second = await acceptInviteAsUser({ userId: reg.userId, token: inv.token });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toMatch(/already used|already a member/i);
+  });
 });
