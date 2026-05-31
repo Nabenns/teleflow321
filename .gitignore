@@ -17,6 +17,11 @@ apps/web/next-env.d.ts
 coverage
 *.lcov
 
+# Playwright
+test-results
+playwright-report
+.playwright
+
 # Env
 .env
 .env.local

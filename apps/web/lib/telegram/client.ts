@@ -1,4 +1,7 @@
-const BASE = "https://api.telegram.org";
+// Overridable so tests (and the Playwright E2E) can point at a local mock
+// server instead of the live Bot API. Production never sets this var, so the
+// default — the real Telegram endpoint — is what ships.
+const BASE = process.env.TELEGRAM_API_BASE_URL ?? "https://api.telegram.org";
 
 export interface GetMeResult {
   ok: boolean;
